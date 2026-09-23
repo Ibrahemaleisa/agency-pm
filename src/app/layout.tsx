@@ -1,4 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,10 +8,14 @@ export const metadata: Metadata = {
   description: "Project management for agencies",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#18181b",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full bg-zinc-50 text-zinc-900">{children}</body>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}>
+      <body className="min-h-full text-zinc-900">{children}</body>
     </html>
   );
 }

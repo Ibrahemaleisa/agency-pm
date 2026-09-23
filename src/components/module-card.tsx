@@ -22,7 +22,7 @@ export function ModuleCard({
   const filledFields = mod.fields.filter((f) => mod.fieldValues[f.key]);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white shadow-xs">
+    <section className="rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
       <header className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
         <div className="flex items-center gap-2">
           <Badge tone={mod.color}>{mod.name}</Badge>

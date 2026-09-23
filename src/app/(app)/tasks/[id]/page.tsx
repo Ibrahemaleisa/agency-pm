@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { formatDistanceToNow } from "date-fns";
-import { Download, Eye, EyeOff, Lock, Paperclip, Trash2 } from "lucide-react";
+import { ChevronDown, Download, Eye, EyeOff, Lock, Paperclip, Pencil, Trash2 } from "lucide-react";
 import { db } from "@/db";
 import { attachments, projectModules, taskComments, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
@@ -110,7 +110,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           {canDecide && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <div className="rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-4 md:p-5">
               <h2 className="text-sm font-semibold text-amber-900">Your approval is needed</h2>
               <p className="mt-1 text-sm text-amber-800">
                 Review the deliverables below, then approve or request changes.
@@ -130,7 +130,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             </div>
           )}
           {!isClient && task.requiresApproval && task.approvalStatus !== "pending" && task.status !== "completed" && (
-            <div className="rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-600">
+            <div className="rounded-xl border border-zinc-200/80 bg-white p-3 text-sm text-zinc-600">
               This task needs client approval. Move it to <strong>Waiting for Client</strong> to send it for approval.
             </div>
           )}
@@ -271,8 +271,8 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="min-w-0 space-y-6">
+        {/* Sidebar: shown first on phones so status/assignee are one tap away */}
+        <div className="order-first min-w-0 space-y-6 lg:order-none">
           <Card>
             <dl className="space-y-4 text-sm">
               <SideField label="Status">
@@ -314,8 +314,14 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
           </Card>
 
           {can(user, "tasks.edit") && (
-            <Card title="Edit task">
-              <ActionForm action={updateTask} className="space-y-3" successMessage="Task updated.">
+            <details className="group rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold select-none md:px-5">
+                <span className="flex items-center gap-2">
+                  <Pencil className="size-4 text-zinc-400" /> Edit details
+                </span>
+                <ChevronDown className="size-4 text-zinc-400 transition group-open:rotate-180" />
+              </summary>
+              <ActionForm action={updateTask} className="space-y-3 border-t border-zinc-100 p-4 md:p-5" successMessage="Task updated.">
                 <input type="hidden" name="taskId" value={task.id} />
                 <Field label="Title">
                   <Input name="title" defaultValue={task.title} required />
@@ -351,7 +357,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                   <SubmitButton size="sm">Save</SubmitButton>
                 </div>
               </ActionForm>
-            </Card>
+            </details>
           )}
 
           {can(user, "tasks.delete") && (

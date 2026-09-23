@@ -21,8 +21,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         orgName={org?.name ?? "Agency"}
         initialUnread={unread}
       />
-      <main className="min-w-0 md:pl-60">
-        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">{children}</div>
+      <main className="min-w-0 md:pl-64">
+        <div className="mx-auto max-w-7xl px-4 pt-5 pb-28 md:px-8 md:py-8">{children}</div>
       </main>
     </div>
   );

@@ -28,7 +28,7 @@ export function PageHeader({
   breadcrumb?: { href: string; label: string }[];
 }) {
   return (
-    <div className="mb-6">
+    <div className="mb-6 md:mb-8">
       {breadcrumb && (
         <nav className="mb-2 flex flex-wrap items-center gap-1 text-xs text-zinc-500">
           {breadcrumb.map((b, i) => (
@@ -43,7 +43,7 @@ export function PageHeader({
       )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{title}</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl">{title}</h1>
           {description && <p className="mt-1 text-sm text-zinc-500">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -66,14 +66,19 @@ export function Card({
   padded?: boolean;
 }) {
   return (
-    <section className={cn("min-w-0 rounded-lg border border-zinc-200 bg-white shadow-xs", className)}>
+    <section
+      className={cn(
+        "min-w-0 rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04),0_1px_8px_-2px_rgb(0_0_0/0.04)]",
+        className,
+      )}
+    >
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+        <header className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3.5 md:px-5">
           <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
           {actions}
         </header>
       )}
-      <div className={cn(padded && "p-4")}>{children}</div>
+      <div className={cn(padded && "p-4 md:p-5")}>{children}</div>
     </section>
   );
 }
@@ -84,25 +89,46 @@ export function Stat({
   href,
   tone = "slate",
   hint,
+  icon,
 }: {
   label: string;
   value: ReactNode;
   href?: string;
   tone?: Tone;
   hint?: string;
+  icon?: ReactNode;
 }) {
   const body = (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-xs transition hover:border-zinc-300">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className={cn("mt-1 text-2xl font-semibold tabular-nums", toneText[tone])}>{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-zinc-400">{hint}</div>}
+    <div
+      className={cn(
+        "group h-full rounded-xl border border-zinc-200/80 bg-white p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition md:p-5",
+        href && "hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-xs font-medium text-zinc-500 md:text-sm">{label}</div>
+        {icon && (
+          <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", toneIconBg[tone])}>
+            {icon}
+          </span>
+        )}
+      </div>
+      <div className={cn("mt-1 text-2xl font-semibold tracking-tight tabular-nums md:text-3xl", toneText[tone])}>
+        {value}
+      </div>
+      {hint && <div className="mt-1 text-xs text-zinc-400">{hint}</div>}
     </div>
   );
   return href ? <Link href={href}>{body}</Link> : body;
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="px-4 py-8 text-center text-sm text-zinc-500">{children}</div>;
+export function EmptyState({ children, icon }: { children: ReactNode; icon?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-zinc-500">
+      {icon && <span className="flex size-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">{icon}</span>}
+      {children}
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -131,6 +157,17 @@ const toneText: Record<Tone, string> = {
   teal: "text-teal-700",
 };
 
+const toneIconBg: Record<Tone, string> = {
+  slate: "bg-zinc-100 text-zinc-600",
+  blue: "bg-blue-50 text-blue-600",
+  violet: "bg-violet-50 text-violet-600",
+  amber: "bg-amber-50 text-amber-600",
+  green: "bg-emerald-50 text-emerald-600",
+  red: "bg-red-50 text-red-600",
+  pink: "bg-pink-50 text-pink-600",
+  teal: "bg-teal-50 text-teal-600",
+};
+
 export const toneDot: Record<Tone, string> = {
   slate: "bg-zinc-400",
   blue: "bg-blue-500",
@@ -146,19 +183,23 @@ export function Badge({
   tone = "slate",
   children,
   className,
+  dot,
 }: {
   tone?: Tone | string;
   children: ReactNode;
   className?: string;
+  dot?: boolean;
 }) {
+  const t = (tone as Tone) in toneClasses ? (tone as Tone) : "slate";
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset",
-        toneClasses[(tone as Tone) in toneClasses ? (tone as Tone) : "slate"],
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+        toneClasses[t],
         className,
       )}
     >
+      {dot && <span className={cn("size-1.5 rounded-full", toneDot[t])} />}
       {children}
     </span>
   );
@@ -166,7 +207,11 @@ export function Badge({
 
 export function StatusBadge({ status }: { status: TaskStatus }) {
   const s = TASK_STATUSES.find((x) => x.value === status)!;
-  return <Badge tone={s.tone}>{s.label}</Badge>;
+  return (
+    <Badge tone={s.tone} dot>
+      {s.label}
+    </Badge>
+  );
 }
 
 export function PriorityBadge({ priority }: { priority: Priority }) {
@@ -178,7 +223,11 @@ export function PriorityBadge({ priority }: { priority: Priority }) {
 
 export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
   const s = PROJECT_STATUSES.find((x) => x.value === status)!;
-  return <Badge tone={s.tone}>{s.label}</Badge>;
+  return (
+    <Badge tone={s.tone} dot>
+      {s.label}
+    </Badge>
+  );
 }
 
 export function ApprovalBadge({ status }: { status: string }) {
@@ -190,9 +239,9 @@ export function ApprovalBadge({ status }: { status: string }) {
 
 export function ProgressBar({ value, className }: { value: number; className?: string }) {
   return (
-    <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-zinc-100", className)}>
+    <div className={cn("h-2 w-full overflow-hidden rounded-full bg-zinc-100", className)}>
       <div
-        className={cn("h-full rounded-full", value >= 100 ? "bg-emerald-500" : "bg-indigo-500")}
+        className={cn("h-full rounded-full", value >= 100 ? "bg-emerald-500" : "bg-gradient-to-r from-indigo-500 to-violet-500")}
         style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
       />
     </div>
@@ -291,7 +340,7 @@ export function formatDate(value: string | Date | null | undefined, fmt = "MMM d
 /* ------------------------------------------------------------------ */
 
 const buttonVariants = {
-  primary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-xs",
+  primary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm shadow-indigo-600/20",
   secondary: "bg-white text-zinc-800 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50 shadow-xs",
   ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
   danger: "bg-white text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-50",
@@ -300,8 +349,8 @@ const buttonVariants = {
 
 export function buttonClass(variant: keyof typeof buttonVariants = "primary", size: "sm" | "md" = "md") {
   return cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
-    size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
+    "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    size === "sm" ? "px-2.5 py-1.5 text-xs" : "px-3.5 py-2 text-sm",
     buttonVariants[variant],
   );
 }
@@ -325,7 +374,7 @@ export function LinkButton({
 }
 
 export const inputClass =
-  "block w-full rounded-md border-0 bg-white px-2.5 py-1.5 text-sm text-zinc-900 shadow-xs ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 focus:outline-none";
+  "block w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-zinc-900 shadow-xs ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 focus:outline-none";
 
 export function Field({
   label,

@@ -19,7 +19,8 @@ import { TASK_STATUSES } from "@/lib/constants";
 import { summarizeModule } from "@/lib/modules";
 import { listActivity, listInternalUsers, listTasks } from "@/server/queries";
 import { addModule, removeModule, updateModuleFields, updateProject } from "@/server/project-actions";
-import { ActivityFeed, TaskTable } from "@/components/lists";
+import { ActivityFeed, TaskBoard, TaskTable } from "@/components/lists";
+import { Columns3, List, Plus } from "lucide-react";
 import { ModuleCard } from "@/components/module-card";
 import { ProjectChat } from "@/components/project-chat";
 import { ProjectForm } from "@/components/project-form";
@@ -94,7 +95,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
         description={project.description}
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 bg-white p-4 text-sm shadow-xs md:grid-cols-5">
+      <div className="mb-5 grid grid-cols-2 gap-4 rounded-xl border border-zinc-200/80 bg-white p-4 text-sm shadow-[0_1px_2px_rgb(0_0_0/0.04)] md:grid-cols-5 md:p-5">
         <Meta label="Client">{client?.name}</Meta>
         <Meta label="Timeline">
           {formatDate(project.startDate, "MMM d")} – {formatDate(project.endDate, "MMM d, yyyy")}
@@ -118,13 +119,13 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
         </Meta>
       </div>
 
-      <nav className="mb-5 flex gap-1 border-b border-zinc-200">
+      <nav className="no-scrollbar -mx-4 mb-5 flex gap-1 overflow-x-auto border-b border-zinc-200 px-4 md:mx-0 md:px-0">
         {tabs.map((t) => (
           <Link
             key={t.value}
             href={`/projects/${project.id}?tab=${t.value}`}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
+              "-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap",
               t.value === tab ? "border-indigo-600 text-zinc-900" : "border-transparent text-zinc-500 hover:text-zinc-900",
             )}
           >
@@ -135,7 +136,13 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
 
       {tab === "overview" && <OverviewTab user={user} project={project} modules={modules} allTasks={allTasks} />}
       {tab === "tasks" && (
-        <TasksTab user={user} project={project} modules={modules} status={typeof sp.status === "string" ? sp.status : "open"} />
+        <TasksTab
+          user={user}
+          project={project}
+          modules={modules}
+          status={typeof sp.status === "string" ? sp.status : "open"}
+          view={sp.view === "list" ? "list" : "board"}
+        />
       )}
       {tab === "chat" && <ChatTab user={user} project={project} channel={sp.channel === "internal" ? "internal" : sp.channel === "client" ? "client" : undefined} />}
       {tab === "activity" && (
@@ -200,7 +207,7 @@ async function OverviewTab({
         </Card>
       )}
       {templates.length > 0 && (
-        <form action={addModule} className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-zinc-300 p-4">
+        <form action={addModule} className="flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-zinc-300 bg-white/50 p-4">
           <input type="hidden" name="projectId" value={project.id} />
           <Field label="Add a module to this project" className="w-64">
             <Select name="templateId" required options={templates.map((t) => ({ value: t.id, label: t.name }))} />
@@ -220,11 +227,13 @@ async function TasksTab({
   project,
   modules,
   status,
+  view,
 }: {
   user: SessionUser;
   project: Project;
   modules: ProjectModule[];
   status: string;
+  view: "board" | "list";
 }) {
   const all = await listTasks(user, { projectId: project.id });
   const shown =
@@ -234,9 +243,9 @@ async function TasksTab({
   return (
     <div className="space-y-5">
       {can(user, "tasks.create") && (
-        <details className="group rounded-lg border border-zinc-200 bg-white shadow-xs">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-indigo-600 select-none">
-            + New task
+        <details className="group rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-600 select-none">
+            <Plus className="size-4 transition group-open:rotate-45" /> New task
           </summary>
           <div className="border-t border-zinc-100 p-4">
             <TaskCreateForm
@@ -250,18 +259,42 @@ async function TasksTab({
           </div>
         </details>
       )}
-      <FilterTabs
-        current={status}
-        options={[
-          { value: "open", label: "Open", count: all.filter((t) => t.status !== "completed").length },
-          ...TASK_STATUSES.map((s) => ({ value: s.value, label: s.label, count: all.filter((t) => t.status === s.value).length })),
-          { value: "all", label: "All", count: all.length },
-        ]}
-        hrefFor={(v) => `/projects/${project.id}?tab=tasks&status=${v}`}
-      />
-      <Card padded={false}>
-        <TaskTable tasks={shown} showProject={false} editableStatus={can(user, "tasks.updateStatus")} />
-      </Card>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex rounded-lg bg-zinc-200/60 p-0.5">
+          {(["board", "list"] as const).map((v) => (
+            <Link
+              key={v}
+              href={`/projects/${project.id}?tab=tasks&view=${v}`}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium",
+                view === v ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800",
+              )}
+            >
+              {v === "board" ? <Columns3 className="size-4" /> : <List className="size-4" />}
+              {v === "board" ? "Board" : "List"}
+            </Link>
+          ))}
+        </div>
+        <span className="text-xs text-zinc-500">{all.length} tasks</span>
+      </div>
+      {view === "board" ? (
+        <TaskBoard tasks={all} editableStatus={can(user, "tasks.updateStatus")} />
+      ) : (
+        <>
+          <FilterTabs
+            current={status}
+            options={[
+              { value: "open", label: "Open", count: all.filter((t) => t.status !== "completed").length },
+              ...TASK_STATUSES.map((s) => ({ value: s.value, label: s.label, count: all.filter((t) => t.status === s.value).length })),
+              { value: "all", label: "All", count: all.length },
+            ]}
+            hrefFor={(v) => `/projects/${project.id}?tab=tasks&view=list&status=${v}`}
+          />
+          <Card padded={false}>
+            <TaskTable tasks={shown} showProject={false} editableStatus={can(user, "tasks.updateStatus")} />
+          </Card>
+        </>
+      )}
     </div>
   );
 }

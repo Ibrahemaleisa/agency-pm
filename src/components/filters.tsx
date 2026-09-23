@@ -12,18 +12,22 @@ export function FilterTabs({
   hrefFor: (value: string) => string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="no-scrollbar -mx-4 flex max-w-[100vw] gap-1.5 overflow-x-auto px-4 md:mx-0 md:max-w-none md:flex-wrap md:px-0">
       {options.map((o) => (
         <Link
           key={o.value}
           href={hrefFor(o.value)}
           className={cn(
-            "rounded-md px-2.5 py-1 text-sm font-medium transition",
-            current === o.value ? "bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-200" : "text-zinc-500 hover:text-zinc-900",
+            "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition",
+            current === o.value
+              ? "bg-zinc-900 text-white shadow-sm"
+              : "bg-white text-zinc-600 ring-1 ring-zinc-200 ring-inset hover:text-zinc-900 hover:ring-zinc-300",
           )}
         >
           {o.label}
-          {o.count !== undefined && <span className="ml-1.5 text-xs text-zinc-400 tabular-nums">{o.count}</span>}
+          {o.count !== undefined && (
+            <span className={cn("ml-1.5 text-xs tabular-nums", "text-zinc-400")}>{o.count}</span>
+          )}
         </Link>
       ))}
     </div>
@@ -39,7 +43,7 @@ export function SearchBox({ defaultValue, placeholder, hidden }: { defaultValue?
         name="q"
         defaultValue={defaultValue}
         placeholder={placeholder}
-        className="block w-full rounded-md border-0 bg-white px-2.5 py-1.5 text-sm shadow-xs ring-1 ring-zinc-300 ring-inset placeholder:text-zinc-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+        className="block w-full rounded-full border-0 bg-white px-4 py-2 text-sm shadow-xs ring-1 ring-zinc-300 ring-inset placeholder:text-zinc-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
       />
     </form>
   );

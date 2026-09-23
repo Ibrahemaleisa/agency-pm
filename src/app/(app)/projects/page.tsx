@@ -2,9 +2,10 @@ import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { PROJECT_STATUSES } from "@/lib/constants";
 import { listProjects } from "@/server/queries";
-import { ProjectTable } from "@/components/lists";
+import { ProjectGrid } from "@/components/lists";
 import { FilterTabs, SearchBox } from "@/components/filters";
-import { Card, LinkButton, PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
+import { Plus } from "lucide-react";
 
 export const metadata = { title: "Projects" };
 
@@ -20,9 +21,9 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
       <PageHeader
         title="Projects"
         description={user.role === "client" ? "Your projects with us." : "All work in flight, by client."}
-        actions={can(user, "projects.manage") && <LinkButton href="/projects/new">New project</LinkButton>}
+        actions={can(user, "projects.manage") && <LinkButton href="/projects/new"><Plus className="size-4" /> New project</LinkButton>}
       />
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <FilterTabs
           current={status}
           options={[
@@ -34,9 +35,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
         />
         <SearchBox defaultValue={q} placeholder="Search projects or clients…" hidden={{ status }} />
       </div>
-      <Card padded={false}>
-        <ProjectTable projects={projects} showClient={user.role !== "client"} />
-      </Card>
+      <ProjectGrid projects={projects} showClient={user.role !== "client"} />
     </>
   );
 }

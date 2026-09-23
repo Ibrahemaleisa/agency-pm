@@ -1,4 +1,16 @@
 import Link from "next/link";
+import { format } from "date-fns";
+import {
+  AlarmClock,
+  AlertTriangle,
+  BadgeCheck,
+  Eye,
+  FolderKanban,
+  Inbox,
+  ListTodo,
+  Percent,
+  UserX,
+} from "lucide-react";
 import { requireUser, type SessionUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { TASK_STATUSES } from "@/lib/constants";
@@ -9,17 +21,15 @@ import {
   taskCountsByStatus,
   teamWorkload,
 } from "@/server/queries";
-import { ActivityFeed, ProjectTable, TaskTable } from "@/components/lists";
+import { ActivityFeed, ProjectGrid, TaskTable } from "@/components/lists";
 import {
   Avatar,
   Card,
   EmptyState,
   PageHeader,
   ProgressBar,
-  ProjectStatusBadge,
   Stat,
   cn,
-  formatDate,
   toneDot,
 } from "@/components/ui";
 
@@ -52,13 +62,13 @@ async function AdminDashboard({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description="Agency overview" />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Stat label="Active projects" value={active.length} href="/projects?status=active" />
-        <Stat label="Overdue tasks" value={overdueAll.length} tone={overdueAll.length ? "red" : "slate"} href="/tasks?view=overdue" />
-        <Stat label="Pending approvals" value={approvalsAll.length} tone={approvalsAll.length ? "amber" : "slate"} href="/approvals" />
-        <Stat label="In review" value={byStatus.review ?? 0} tone="violet" href="/tasks?status=review" />
-        <Stat label="Unassigned open tasks" value={unassigned} href="/tasks?view=unassigned" />
+      <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description={`${today()} · Agency overview`} />
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+        <Stat label="Active projects" value={active.length} href="/projects?status=active" tone="blue" icon={<FolderKanban className="size-4" />} />
+        <Stat label="Overdue tasks" value={overdueAll.length} tone={overdueAll.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
+        <Stat label="Pending approvals" value={approvalsAll.length} tone={approvalsAll.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
+        <Stat label="In review" value={byStatus.review ?? 0} tone="violet" href="/tasks?status=review" icon={<Eye className="size-4" />} />
+        <Stat label="Unassigned" value={unassigned} href="/tasks?view=unassigned" icon={<UserX className="size-4" />} hint="Open tasks with no owner" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -70,23 +80,22 @@ async function AdminDashboard({ user }: { user: SessionUser }) {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-6">
-        <Card title="Overdue tasks" actions={<SeeAll href="/tasks?view=overdue" />} padded={false}>
-          <TaskTable tasks={overdue} showProject={false} empty="Nothing overdue. 🎉" />
-        </Card>
-        <Card title="Pending client approvals" actions={<SeeAll href="/approvals" />} padded={false}>
-          <TaskTable tasks={approvals} showProject={false} empty="No approvals pending." />
-        </Card>
-      </div>
-
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card title="Open projects" actions={<SeeAll href="/projects" />} padded={false} className="lg:col-span-2">
-          <ProjectTable projects={openProjects.slice(0, 8)} />
-        </Card>
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <Card title={<CardTitle icon={<AlertTriangle className="size-4 text-red-500" />}>Overdue tasks</CardTitle>} actions={<SeeAll href="/tasks?view=overdue" />} padded={false}>
+            <TaskTable tasks={overdue} showProject={false} empty="Nothing overdue. Nice work!" />
+          </Card>
+          <Card title={<CardTitle icon={<BadgeCheck className="size-4 text-amber-500" />}>Waiting on client approval</CardTitle>} actions={<SeeAll href="/approvals" />} padded={false}>
+            <TaskTable tasks={approvals} showProject={false} empty="No approvals pending." />
+          </Card>
+        </div>
         <Card title="Recent activity" actions={<SeeAll href="/activity" />} padded={false}>
           <ActivityFeed items={activity} />
         </Card>
       </div>
+
+      <SectionHeading title="Open projects" action={<SeeAll href="/projects" />} />
+      <ProjectGrid projects={openProjects.slice(0, 6)} />
     </>
   );
 }
@@ -111,12 +120,12 @@ async function EmployeeDashboard({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description="Here's what needs your attention." />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="My open tasks" value={mine.length} href="/tasks" />
-        <Stat label="Due today" value={dueToday.length} tone={dueToday.length ? "amber" : "slate"} href="/tasks?view=today" />
-        <Stat label="Overdue" value={overdue.length} tone={overdue.length ? "red" : "slate"} href="/tasks?view=overdue" />
-        <Stat label="Waiting for me" value={waitingForMe.length} tone="violet" hint="Reviews + client change requests" />
+      <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description={`${today()} · Here's what needs your attention.`} />
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+        <Stat label="My open tasks" value={mine.length} href="/tasks" tone="blue" icon={<ListTodo className="size-4" />} />
+        <Stat label="Due today" value={dueToday.length} tone={dueToday.length ? "amber" : "slate"} href="/tasks?view=today" icon={<AlarmClock className="size-4" />} />
+        <Stat label="Overdue" value={overdue.length} tone={overdue.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
+        <Stat label="Waiting for me" value={waitingForMe.length} tone="violet" hint="Reviews + change requests" icon={<Inbox className="size-4" />} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -182,70 +191,44 @@ async function ClientDashboard({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <PageHeader title={`Welcome, ${user.name.split(" ")[0]}`} description="Your projects at a glance." />
+      <PageHeader title={`Welcome, ${user.name.split(" ")[0]}`} description={`${today()} · Your projects at a glance.`} />
 
       {approvals.length > 0 && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-sm font-semibold text-amber-900">
-                {approvals.length} item{approvals.length > 1 ? "s" : ""} waiting for your approval
-              </div>
-              <div className="text-xs text-amber-800">Your feedback keeps the project moving.</div>
-            </div>
-            <Link href="/approvals" className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500">
-              Review now
-            </Link>
-          </div>
-        </div>
+        <Link
+          href="/approvals"
+          className="mb-6 flex items-center gap-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 p-4 text-white shadow-lg shadow-amber-500/20 transition hover:shadow-xl md:p-5"
+        >
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/20">
+            <BadgeCheck className="size-6" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">
+              {approvals.length} item{approvals.length > 1 ? "s" : ""} waiting for your approval
+            </span>
+            <span className="block text-sm text-white/85">Your feedback keeps the project moving.</span>
+          </span>
+          <span className="hidden rounded-lg bg-white px-3 py-2 text-sm font-semibold text-amber-700 sm:block">Review now</span>
+        </Link>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <Stat label="Active projects" value={upcoming.length} />
-        <Stat label="Pending approvals" value={approvals.length} tone={approvals.length ? "amber" : "slate"} href="/approvals" />
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
+        <Stat label="Active projects" value={upcoming.length} tone="blue" icon={<FolderKanban className="size-4" />} />
+        <Stat label="Pending approvals" value={approvals.length} tone={approvals.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
         <Stat
           label="Overall progress"
+          tone="green"
+          icon={<Percent className="size-4" />}
           value={`${myProjects.length ? Math.round(myProjects.reduce((s, p) => s + p.progress, 0) / myProjects.length) : 0}%`}
         />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="min-w-0 space-y-4 lg:col-span-2">
-          {myProjects.map((p) => (
-            <Link
-              key={p.id}
-              href={`/projects/${p.id}`}
-              className="block rounded-lg border border-zinc-200 bg-white p-4 shadow-xs hover:border-zinc-300"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="font-medium">{p.name}</div>
-                  <div className="text-xs text-zinc-500">
-                    {formatDate(p.startDate)} – {formatDate(p.endDate)}
-                  </div>
-                </div>
-                <ProjectStatusBadge status={p.status} />
-              </div>
-              <div className="mt-3 flex items-center gap-3">
-                <ProgressBar value={p.progress} />
-                <span className="text-sm font-medium tabular-nums">{p.progress}%</span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-zinc-500">
-                <span>{p.modules.map((m) => m.name).join(" · ")}</span>
-                {p.waiting > 0 && <span className="font-medium text-amber-700">{p.waiting} awaiting your approval</span>}
-              </div>
-            </Link>
-          ))}
-          {myProjects.length === 0 && (
-            <Card>
-              <EmptyState>No projects yet.</EmptyState>
-            </Card>
-          )}
-        </div>
-        <Card title="Recent activity" padded={false}>
-          <ActivityFeed items={activity} />
-        </Card>
-      </div>
+      <SectionHeading title="Your projects" />
+      <ProjectGrid projects={myProjects} showClient={false} />
+
+      <SectionHeading title="Recent updates" />
+      <Card padded={false}>
+        <ActivityFeed items={activity} empty="No updates yet." />
+      </Card>
     </>
   );
 }
@@ -310,6 +293,28 @@ function WorkloadBars({ rows }: { rows: Awaited<ReturnType<typeof teamWorkload>>
       ))}
     </ul>
   );
+}
+
+function SectionHeading({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="mt-8 mb-3 flex items-center justify-between">
+      <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
+      {action}
+    </div>
+  );
+}
+
+function CardTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-2">
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+function today() {
+  return format(new Date(), "EEEE, MMMM d");
 }
 
 function SeeAll({ href }: { href: string }) {

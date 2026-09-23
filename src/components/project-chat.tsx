@@ -27,7 +27,7 @@ export function ProjectChat({
   currentUserName: string;
 }) {
   return (
-    <div className="flex h-[calc(100vh-18rem)] min-h-[420px] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xs">
+    <div className="flex h-[calc(100dvh-22rem)] min-h-[440px] flex-col md:h-[calc(100dvh-18rem)] overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
       <AutoRefresh intervalMs={5000} />
       <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-2">
         <div className="flex gap-1">
@@ -36,12 +36,13 @@ export function ProjectChat({
               key={c}
               href={`/projects/${projectId}?tab=chat&channel=${c}`}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium",
-                c === channel ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-900",
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium",
+                c === channel ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",
               )}
             >
               {c === "internal" ? <Lock className="size-3.5" /> : <Users className="size-3.5" />}
-              {c === "internal" ? "Team (internal)" : "Client conversation"}
+              {c === "internal" ? "Team" : "Client"}
+              <span className="hidden sm:inline">{c === "internal" ? " (internal)" : " conversation"}</span>
             </Link>
           ))}
         </div>
@@ -51,27 +52,37 @@ export function ProjectChat({
       </div>
 
       {/* flex-col-reverse keeps the view anchored to the newest message */}
-      <div className="flex flex-1 flex-col-reverse overflow-y-auto px-4 py-3">
+      <div className="flex flex-1 flex-col-reverse overflow-y-auto bg-zinc-50/60 px-3 py-4 md:px-5">
         {messages.length === 0 ? (
           <EmptyState>No messages yet. Start the conversation.</EmptyState>
         ) : (
           <ul className="space-y-3">
-            {messages.map((m) => {
+            {messages.map((m, i) => {
               const mine = m.authorName === currentUserName;
+              const grouped = messages[i - 1]?.authorName === m.authorName;
               return (
-                <li key={m.id} className="flex gap-2.5">
-                  <Avatar name={m.authorName} size="md" />
-                  <div className="min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-medium">{m.authorName ?? "Deleted user"}</span>
-                      {m.authorRole === "client" && <Badge tone="amber">Client</Badge>}
-                      <span className="text-xs text-zinc-400">
-                        {format(m.createdAt, isToday(m.createdAt) ? "h:mm a" : "MMM d, h:mm a")}
-                      </span>
-                    </div>
-                    <p className={cn("mt-0.5 text-sm whitespace-pre-wrap text-zinc-700", mine && "text-zinc-900")}>
+                <li key={m.id} className={cn("flex items-end gap-2", mine && "flex-row-reverse", grouped && "-mt-2")}>
+                  <span className={cn("shrink-0", (mine || grouped) && "invisible")}>
+                    <Avatar name={m.authorName} size="md" />
+                  </span>
+                  <div className={cn("flex max-w-[80%] flex-col", mine ? "items-end" : "items-start")}>
+                    {!grouped && !mine && (
+                      <div className="mb-1 flex items-center gap-1.5 px-1 text-xs">
+                        <span className="font-medium text-zinc-700">{m.authorName ?? "Deleted user"}</span>
+                        {m.authorRole === "client" && <Badge tone="amber">Client</Badge>}
+                      </div>
+                    )}
+                    <div
+                      className={cn(
+                        "rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap shadow-sm",
+                        mine ? "rounded-br-md bg-indigo-600 text-white [&_span]:text-indigo-100" : "rounded-bl-md border border-zinc-200/80 bg-white text-zinc-800",
+                      )}
+                    >
                       <Highlight text={m.body} />
-                    </p>
+                    </div>
+                    <span className="mt-1 px-1 text-[11px] text-zinc-400">
+                      {format(m.createdAt, isToday(m.createdAt) ? "h:mm a" : "MMM d, h:mm a")}
+                    </span>
                   </div>
                 </li>
               );
@@ -86,7 +97,8 @@ export function ProjectChat({
         <div className="flex items-end gap-2">
           <Textarea
             name="body"
-            rows={2}
+            rows={1}
+            className="rounded-2xl"
             required
             placeholder={`Message ${channel === "internal" ? "the team" : "everyone incl. client"}… use @name to mention`}
           />

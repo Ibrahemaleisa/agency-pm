@@ -68,7 +68,7 @@ export default async function TeamPage() {
                   <Td className="w-24 text-right">
                     <details className="group relative">
                       <summary className="cursor-pointer list-none text-xs font-medium text-indigo-600">Edit</summary>
-                      <div className="absolute right-0 z-10 mt-2 w-80 rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-lg">
+                      <div className="absolute right-0 z-10 mt-2 w-80 rounded-xl border border-zinc-200/80 bg-white p-4 text-left shadow-lg">
                         <ActionForm action={updateUser} className="space-y-3" successMessage="Saved.">
                           <input type="hidden" name="userId" value={p.id} />
                           <Field label="Name"><Input name="name" defaultValue={p.name} required /></Field>
