@@ -37,7 +37,7 @@ export default async function LoginPage() {
             </SubmitButton>
           </ActionForm>
         </div>
-        {process.env.NODE_ENV !== "production" && (
+        {(process.env.NODE_ENV !== "production" || process.env.SHOW_DEMO_ACCOUNTS === "true") && (
           <div className="mt-4 rounded-lg border border-dashed border-zinc-300 p-4 text-xs text-zinc-600">
             <div className="mb-2 font-medium text-zinc-700">Demo accounts (password: <code>password</code>)</div>
             <ul className="space-y-1">

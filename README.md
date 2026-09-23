@@ -30,6 +30,21 @@ npm run dev                   # http://localhost:3000
 Other staff: `karim@` (admin), `maya@`, `yusuf@`, `nour@`, `adam@`, `leila@` (all `@northwind.agency`).
 Other clients: `daniel@atlasfitness.com`, `rana@verde-re.com`.
 
+## Deploy to Vercel
+
+1. In Vercel, **Add New → Project** and import `Ibrahemaleisa/agency-pm`. Keep the defaults.
+2. In the project's **Storage** tab, add:
+   - a **Postgres** database (e.g. Neon) — this sets `DATABASE_URL` / `POSTGRES_URL`;
+   - a **Blob** store — this sets `BLOB_READ_WRITE_TOKEN` (needed for file uploads).
+3. Optional: add the environment variable `SHOW_DEMO_ACCOUNTS=true` to show the demo logins.
+4. **Redeploy** (Deployments → ⋯ → Redeploy) so the build sees the new variables.
+
+The build (`npm run vercel-build`) runs migrations, loads demo data **only if the database is
+empty**, then builds the app. Later deploys never reset data. On Vercel, uploads are limited to 4 MB
+(Vercel's request size limit).
+
+**Change the demo passwords** (Team & Users → Edit) before sharing the URL — every demo account uses `password`.
+
 ## How it's organized
 
 ```

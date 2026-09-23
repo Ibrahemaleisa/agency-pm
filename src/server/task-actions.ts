@@ -3,8 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -24,7 +22,7 @@ import { assertCan, can, ForbiddenError } from "@/lib/permissions";
 import { getProjectAudience, logActivity, notify, resolveMentions } from "@/lib/events";
 import { bool, str, type ActionState } from "@/lib/action-state";
 import { taskStatusLabel } from "@/lib/constants";
-import { MAX_UPLOAD_BYTES, UPLOAD_DIR } from "@/lib/uploads";
+import { MAX_UPLOAD_BYTES, removeFile, saveFile } from "@/lib/uploads";
 
 const refresh = () => revalidatePath("/", "layout");
 const taskLink = (id: string) => `/tasks/${id}`;
@@ -346,12 +344,12 @@ export async function uploadAttachment(_prev: ActionState, fd: FormData): Promis
   const { task } = await getAccessibleTask(user, str(fd, "taskId") ?? "");
   const file = fd.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose a file to upload." };
-  if (file.size > MAX_UPLOAD_BYTES) return { error: "Files must be 20 MB or smaller." };
+  if (file.size > MAX_UPLOAD_BYTES)
+    return { error: `Files must be ${MAX_UPLOAD_BYTES / 1024 / 1024} MB or smaller.` };
 
   const safeName = file.name.replace(/[^\w.\-]+/g, "_").slice(-100);
   const storageKey = `${user.orgId}/${randomUUID()}-${safeName}`;
-  await mkdir(path.join(UPLOAD_DIR, user.orgId), { recursive: true });
-  await writeFile(path.join(UPLOAD_DIR, storageKey), Buffer.from(await file.arrayBuffer()));
+  await saveFile(storageKey, Buffer.from(await file.arrayBuffer()), file.type || "application/octet-stream");
 
   const clientVisible = can(user, "tasks.setClientVisibility") && bool(fd, "clientVisible");
   await db.insert(attachments).values({
@@ -409,7 +407,7 @@ export async function deleteAttachment(fd: FormData) {
   const { task } = await getAccessibleTask(user, att.taskId);
   if (att.uploaderId !== user.id && user.role !== "admin") throw new ForbiddenError();
   await db.delete(attachments).where(eq(attachments.id, att.id));
-  await unlink(path.join(UPLOAD_DIR, att.storageKey)).catch(() => {});
+  await removeFile(att.storageKey);
   await logActivity(user, {
     action: "file.deleted",
     summary: `removed ${att.fileName} from "${task.title}"`,

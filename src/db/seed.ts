@@ -1,6 +1,4 @@
 import "dotenv/config";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { addDays, format, subHours, subMinutes } from "date-fns";
@@ -9,12 +7,20 @@ import { db } from "./index";
 import * as s from "./schema";
 import { DEFAULT_TEMPLATES } from "../lib/default-templates";
 import { addModuleToProject } from "../lib/modules";
+import { saveFile } from "../lib/uploads";
 
 const today = new Date();
 const d = (offset: number) => format(addDays(today, offset), "yyyy-MM-dd");
-const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR ?? "./uploads");
 
 async function main() {
+  // `--if-empty` (used by the Vercel build) only seeds a brand-new database, never resets one.
+  if (process.argv.includes("--if-empty")) {
+    const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(s.organizations);
+    if (n > 0) {
+      console.log("Database already has data — skipping seed.");
+      return;
+    }
+  }
   console.log("Resetting database…");
   await db.execute(sql`TRUNCATE organizations, sessions RESTART IDENTITY CASCADE`);
 
@@ -345,7 +351,6 @@ async function main() {
   ]);
 
   /* ---------------- Attachments (placeholder files) ---------------- */
-  await mkdir(path.join(UPLOAD_DIR, org.id), { recursive: true });
   const files = [
     { task: heroTask, name: "hero-selects-contact-sheet.svg", mime: "image/svg+xml", clientVisible: true, body: svgPlaceholder("Hero selects – contact sheet") },
     { task: teaserTask, name: "autumn-teaser-stories-v2.svg", mime: "image/svg+xml", clientVisible: false, body: svgPlaceholder("Autumn teaser v2") },
@@ -354,7 +359,7 @@ async function main() {
   ];
   for (const f of files) {
     const key = `${org.id}/${randomUUID()}-${f.name}`;
-    await writeFile(path.join(UPLOAD_DIR, key), f.body);
+    await saveFile(key, Buffer.from(f.body), f.mime);
     await db.insert(s.attachments).values({
       orgId: org.id,
       taskId: f.task.id,
