@@ -33,15 +33,16 @@ Other clients: `daniel@atlasfitness.com`, `rana@verde-re.com`.
 ## Deploy to Vercel
 
 1. In Vercel, **Add New → Project** and import `Ibrahemaleisa/agency-pm`. Keep the defaults.
-2. In the project's **Storage** tab, add:
-   - a **Postgres** database (e.g. Neon) — this sets `DATABASE_URL` / `POSTGRES_URL`;
-   - a **Blob** store — this sets `BLOB_READ_WRITE_TOKEN` (needed for file uploads).
-3. Optional: add the environment variable `SHOW_DEMO_ACCOUNTS=true` to show the demo logins.
-4. **Redeploy** (Deployments → ⋯ → Redeploy) so the build sees the new variables.
+2. In the project's **Storage** tab, create a **Neon** (Postgres) database and connect it to the
+   project. This sets `DATABASE_URL`. That's the only required setup.
+3. **Redeploy** (Deployments → ⋯ → Redeploy) so the build sees the database.
 
 The build (`npm run vercel-build`) runs migrations, loads demo data **only if the database is
-empty**, then builds the app. Later deploys never reset data. On Vercel, uploads are limited to 4 MB
-(Vercel's request size limit).
+empty**, then builds the app. Later deploys never reset data.
+
+Uploaded files are stored in the database by default on Vercel (4 MB limit per file). For larger
+volumes, add a **Blob** store in the Storage tab (sets `BLOB_READ_WRITE_TOKEN`) and redeploy — new
+uploads then go to Vercel Blob. Set `SHOW_DEMO_ACCOUNTS=true` to list the demo logins on the login page.
 
 **Change the demo passwords** (Team & Users → Edit) before sharing the URL — every demo account uses `password`.
 

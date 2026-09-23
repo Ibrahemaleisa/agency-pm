@@ -22,7 +22,7 @@ async function main() {
     }
   }
   console.log("Resetting database…");
-  await db.execute(sql`TRUNCATE organizations, sessions RESTART IDENTITY CASCADE`);
+  await db.execute(sql`TRUNCATE organizations, sessions, file_blobs RESTART IDENTITY CASCADE`);
 
   const [org] = await db.insert(s.organizations).values({ name: "Northwind Creative", slug: "northwind" }).returning();
   const passwordHash = await bcrypt.hash("password", 10);

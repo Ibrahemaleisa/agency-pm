@@ -11,7 +11,10 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  customType,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 /* ------------------------------------------------------------------ */
 /* Enums                                                               */
@@ -299,6 +302,12 @@ export const attachments = pgTable(
   },
   (t) => [index("attachments_task_idx").on(t.taskId)],
 );
+
+/** File contents, used for uploads when no external file store is configured. */
+export const fileBlobs = pgTable("file_blobs", {
+  key: text("key").primaryKey(),
+  data: bytea("data").notNull(),
+});
 
 /* ------------------------------------------------------------------ */
 /* Collaboration                                                       */
