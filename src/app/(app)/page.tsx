@@ -64,7 +64,7 @@ async function AdminDashboard({ user }: { user: SessionUser }) {
     <>
       <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description={`${today()} · Agency overview`} />
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
-        <Stat label="Active projects" value={active.length} href="/projects?status=active" tone="blue" icon={<FolderKanban className="size-4" />} />
+        <Stat label="Active projects" value={active.length} href="/projects?status=active" tone="slate" icon={<FolderKanban className="size-4" />} />
         <Stat label="Overdue tasks" value={overdueAll.length} tone={overdueAll.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
         <Stat label="Pending approvals" value={approvalsAll.length} tone={approvalsAll.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
         <Stat label="In review" value={byStatus.review ?? 0} tone="violet" href="/tasks?status=review" icon={<Eye className="size-4" />} />
@@ -122,7 +122,7 @@ async function EmployeeDashboard({ user }: { user: SessionUser }) {
     <>
       <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description={`${today()} · Here's what needs your attention.`} />
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-        <Stat label="My open tasks" value={mine.length} href="/tasks" tone="blue" icon={<ListTodo className="size-4" />} />
+        <Stat label="My open tasks" value={mine.length} href="/tasks" tone="slate" icon={<ListTodo className="size-4" />} />
         <Stat label="Due today" value={dueToday.length} tone={dueToday.length ? "amber" : "slate"} href="/tasks?view=today" icon={<AlarmClock className="size-4" />} />
         <Stat label="Overdue" value={overdue.length} tone={overdue.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
         <Stat label="Waiting for me" value={waitingForMe.length} tone="violet" hint="Reviews + change requests" icon={<Inbox className="size-4" />} />
@@ -196,27 +196,27 @@ async function ClientDashboard({ user }: { user: SessionUser }) {
       {approvals.length > 0 && (
         <Link
           href="/approvals"
-          className="mb-6 flex items-center gap-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 p-4 text-white shadow-lg shadow-amber-500/20 transition hover:shadow-xl md:p-5"
+          className="mb-6 flex items-center gap-4 rounded-xl bg-ink p-4 text-white shadow-lg shadow-black/10 transition hover:shadow-xl md:p-5"
         >
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/20">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-sand-200 text-ink">
             <BadgeCheck className="size-6" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-semibold">
               {approvals.length} item{approvals.length > 1 ? "s" : ""} waiting for your approval
             </span>
-            <span className="block text-sm text-white/85">Your feedback keeps the project moving.</span>
+            <span className="block text-sm text-zinc-400">Your feedback keeps the project moving.</span>
           </span>
-          <span className="hidden rounded-lg bg-white px-3 py-2 text-sm font-semibold text-amber-700 sm:block">Review now</span>
+          <span className="hidden rounded-lg bg-sand-200 px-3 py-2 text-sm font-semibold text-ink sm:block">Review now</span>
         </Link>
       )}
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
-        <Stat label="Active projects" value={upcoming.length} tone="blue" icon={<FolderKanban className="size-4" />} />
+        <Stat label="Active projects" value={upcoming.length} tone="slate" icon={<FolderKanban className="size-4" />} />
         <Stat label="Pending approvals" value={approvals.length} tone={approvals.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
         <Stat
           label="Overall progress"
-          tone="green"
+          tone="slate"
           icon={<Percent className="size-4" />}
           value={`${myProjects.length ? Math.round(myProjects.reduce((s, p) => s + p.progress, 0) / myProjects.length) : 0}%`}
         />

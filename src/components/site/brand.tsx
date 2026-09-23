@@ -1,35 +1,56 @@
 import { cn } from "../ui";
 
+const EYE = "M150 231C215 231 268 300 267 372C266 405 255 425 225 426C150 428 68 395 68 322C68 270 105 231 150 231Z";
+const BODY =
+  "M0 150C0 67 67 0 150 0L492 0C575 0 642 67 642 150L642 876C642 902 614 916 592 900L405 757C360 722 282 722 237 757L50 900C28 916 0 902 0 876Z";
+
+/** Colours per background so the mark never disappears. */
+const VARIANTS = {
+  /** Original: black mask, white eyes — for light backgrounds. */
+  light: { body: "#0a0a0a", eye: "#ffffff", shade: "#d1d1d1" },
+  /** Beige mask, dark eyes — for black backgrounds. */
+  dark: { body: "#e8dcc8", eye: "#0a0a0a", shade: "#2e2c29" },
+} as const;
+
 /**
- * Fada mark: a planet with an orbit ring and a satellite.
- * `uid` keeps gradient ids unique when several marks render on one page.
+ * Fada mask mark.
+ * `uid` keeps clip-path ids unique when several marks render on one page.
  */
-export function FadaMark({ className, uid = "fm", label }: { className?: string; uid?: string; label?: string }) {
-  const planet = `${uid}-planet`;
-  const ring = `${uid}-ring`;
+export function FadaMark({
+  className,
+  uid = "fm",
+  label,
+  variant = "dark",
+}: {
+  className?: string;
+  uid?: string;
+  label?: string;
+  variant?: keyof typeof VARIANTS;
+}) {
+  const c = VARIANTS[variant];
+  const clip = `${uid}-eye`;
+  const eye = (
+    <>
+      <path d={EYE} fill={c.shade} />
+      <path clipPath={`url(#${clip})`} d="M140 222C133 300 140 380 255 428L300 428L300 222Z" fill={c.eye} />
+    </>
+  );
   return (
     <svg
-      viewBox="0 0 40 40"
-      className={cn("size-9 shrink-0", className)}
+      viewBox="0 0 642 908"
+      className={cn("h-9 w-auto shrink-0", className)}
       role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
     >
       <defs>
-        <linearGradient id={planet} x1="8" y1="8" x2="30" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#a5b4fc" />
-          <stop offset="0.55" stopColor="#7c3aed" />
-          <stop offset="1" stopColor="#312e81" />
-        </linearGradient>
-        <linearGradient id={ring} x1="2" y1="20" x2="38" y2="20" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#67e8f9" stopOpacity="0.35" />
-          <stop offset="0.5" stopColor="#c7d2fe" />
-          <stop offset="1" stopColor="#c084fc" stopOpacity="0.35" />
-        </linearGradient>
+        <clipPath id={clip}>
+          <path d={EYE} />
+        </clipPath>
       </defs>
-      <circle cx="20" cy="20" r="10" fill={`url(#${planet})`} />
-      <ellipse cx="20" cy="20" rx="18" ry="6.5" fill="none" stroke={`url(#${ring})`} strokeWidth="1.6" transform="rotate(-24 20 20)" />
-      <circle cx="35.2" cy="13.6" r="2" fill="#22d3ee" />
+      <path d={BODY} fill={c.body} />
+      {eye}
+      <g transform="translate(642 0) scale(-1 1)">{eye}</g>
     </svg>
   );
 }
@@ -37,7 +58,7 @@ export function FadaMark({ className, uid = "fm", label }: { className?: string;
 export function FadaLogo({ lang, className, uid }: { lang: "ar" | "en"; className?: string; uid?: string }) {
   return (
     <span className={cn("flex items-center gap-2.5", className)}>
-      <FadaMark uid={uid} />
+      <FadaMark uid={uid} className="h-8" />
       <span className="font-display text-xl font-semibold tracking-tight text-white">{lang === "ar" ? "فضاء" : "Fada"}</span>
     </span>
   );

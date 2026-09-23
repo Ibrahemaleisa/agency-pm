@@ -21,5 +21,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Public: sign-in, landing, language switch, static assets.
-  matcher: ["/((?!login|welcome|lang|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!login|welcome|lang|icon|apple-icon|_next/static|_next/image|favicon.ico).*)"],
 };

@@ -76,7 +76,7 @@ export function Sidebar({
   return (
     <>
       {/* ---------------- Desktop sidebar ---------------- */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-zinc-950 text-zinc-300 md:flex">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-ink text-zinc-300 md:flex">
         <Brand orgName={orgName} />
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
           {items.map((item, i) => {
@@ -98,11 +98,11 @@ export function Sidebar({
                     active ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white",
                   )}
                 >
-                  {active && <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-indigo-400" />}
-                  <Icon className={cn("size-4 shrink-0", active ? "text-indigo-300" : "text-zinc-500 group-hover:text-zinc-300")} />
+                  {active && <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-sand-300" />}
+                  <Icon className={cn("size-4 shrink-0", active ? "text-sand-300" : "text-zinc-500 group-hover:text-zinc-300")} />
                   <span className="flex-1">{item.label}</span>
                   {!!badge && (
-                    <span className="rounded-full bg-indigo-500 px-1.5 py-px text-[10px] font-semibold text-white tabular-nums">
+                    <span className="rounded-full bg-sand-200 px-1.5 py-px text-[10px] font-semibold text-ink tabular-nums">
                       {badge}
                     </span>
                   )}
@@ -113,7 +113,7 @@ export function Sidebar({
         </nav>
         <div className="border-t border-white/10 p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-xs font-semibold text-white">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sand-200 text-xs font-semibold text-ink">
               {initials}
             </span>
             <div className="min-w-0 flex-1">
@@ -132,10 +132,10 @@ export function Sidebar({
       {/* ---------------- Mobile top bar ---------------- */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-200/80 bg-white/85 px-4 backdrop-blur-md md:hidden">
         <div className="flex items-center gap-2">
-          <Logo orgName={orgName} uid="fm-mobile" />
+          <Logo orgName={orgName} uid="fm-mobile" variant="light" />
           <span className="text-[15px] font-semibold">{orgName}</span>
         </div>
-        <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-xs font-semibold text-white">
+        <span className="flex size-8 items-center justify-center rounded-full bg-sand-200 text-xs font-semibold text-ink">
           {initials}
         </span>
       </header>
@@ -156,7 +156,7 @@ export function Sidebar({
                 href={item.href}
                 className={cn(
                   "relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
-                  active ? "text-indigo-600" : "text-zinc-500",
+                  active ? "text-ink" : "text-zinc-400",
                 )}
               >
                 <span className="relative">
@@ -175,7 +175,7 @@ export function Sidebar({
             onClick={() => setMoreOpen(true)}
             className={cn(
               "flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
-              rest.some((i) => isActive(i.href)) ? "text-indigo-600" : "text-zinc-500",
+              rest.some((i) => isActive(i.href)) ? "text-ink" : "text-zinc-400",
             )}
           >
             <Menu className="size-6" strokeWidth={1.8} />
@@ -213,7 +213,7 @@ export function Sidebar({
                     onClick={() => setMoreOpen(false)}
                     className={cn(
                       "relative flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-center text-xs font-medium",
-                      isActive(item.href) ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-zinc-200 text-zinc-700",
+                      isActive(item.href) ? "border-sand-300 bg-sand-50 text-ink" : "border-zinc-200 text-zinc-700",
                     )}
                   >
                     <Icon className="size-5" />
@@ -240,14 +240,14 @@ export function Sidebar({
   );
 }
 
-function Logo({ orgName, uid }: { orgName: string; uid: string }) {
-  return <FadaMark className="size-8" uid={uid} label={orgName} />;
+function Logo({ orgName, uid, variant }: { orgName: string; uid: string; variant: "light" | "dark" }) {
+  return <FadaMark className="h-8" uid={uid} label={orgName} variant={variant} />;
 }
 
 function Brand({ orgName }: { orgName: string }) {
   return (
     <div className="flex h-16 items-center gap-3 px-5">
-      <Logo orgName={orgName} uid="fm-desktop" />
+      <Logo orgName={orgName} uid="fm-desktop" variant="dark" />
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold text-white">{orgName}</div>
         <div className="text-[11px] text-zinc-500">Workspace</div>

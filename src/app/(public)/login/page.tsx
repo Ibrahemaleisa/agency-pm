@@ -22,7 +22,7 @@ const DEMO_ACCOUNTS = [
 const HIGHLIGHT_ICONS = [FolderKanban, BadgeCheck, MessagesSquare];
 
 const field =
-  "block w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-indigo-400/60 focus:bg-white/[0.08] focus:ring-4 focus:ring-indigo-500/15";
+  "block w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-sand-200/60 focus:bg-white/[0.08] focus:ring-4 focus:ring-sand-200/10";
 
 export default async function LoginPage() {
   if (await getCurrentUser()) redirect("/");
@@ -33,8 +33,8 @@ export default async function LoginPage() {
   return (
     <div className="relative flex min-h-screen overflow-hidden">
       <div className="starfield starfield-slow pointer-events-none absolute inset-0 opacity-50" />
-      <div className="pointer-events-none absolute -top-40 -end-40 size-[560px] rounded-full bg-indigo-600/25 blur-[130px]" />
-      <div className="pointer-events-none absolute -bottom-48 -start-32 size-[480px] rounded-full bg-violet-700/20 blur-[120px]" />
+      <div className="pointer-events-none absolute -top-40 -end-40 size-[560px] rounded-full bg-sand-200/[0.07] blur-[130px]" />
+      <div className="pointer-events-none absolute -bottom-48 -start-32 size-[480px] rounded-full bg-white/[0.04] blur-[120px]" />
 
       {/* Story panel (desktop) */}
       <aside className="relative hidden w-1/2 flex-col p-12 lg:flex">
@@ -44,7 +44,7 @@ export default async function LoginPage() {
         <div className="mt-auto max-w-md">
           <h2 className="font-display text-4xl leading-tight font-bold text-white">
             {t.hero.title1}{" "}
-            <span className="bg-gradient-to-r from-indigo-300 to-cyan-200 bg-clip-text text-transparent">{t.hero.title2}</span>
+            <span className="bg-gradient-to-r from-sand-100 to-sand-400 bg-clip-text text-transparent">{t.hero.title2}</span>
           </h2>
           <ul className="mt-10 space-y-6">
             {t.login.highlights.map(({ title, text }, i) => {
@@ -52,7 +52,7 @@ export default async function LoginPage() {
               return (
                 <li key={title} className="flex gap-4">
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10">
-                    <Icon className="size-5 text-indigo-200" />
+                    <Icon className="size-5 text-sand-200" />
                   </span>
                   <span>
                     <span className="font-display block font-medium text-white">{title}</span>
@@ -99,7 +99,7 @@ export default async function LoginPage() {
                   <input name="password" type="password" autoComplete="current-password" required dir="ltr" className={`${field} text-start`} />
                 </label>
                 <SubmitButton
-                  className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 py-3 text-base shadow-lg shadow-indigo-600/30"
+                  className="w-full rounded-xl bg-sand-200! py-3 text-base font-semibold text-ink! shadow-none! hover:bg-sand-100!"
                   pendingText={t.login.pending}
                 >
                   {t.login.submit}

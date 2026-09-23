@@ -9,7 +9,7 @@ import { dirOf } from "@/lib/i18n";
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const lang = await getLang();
   return (
-    <div lang={lang} dir={dirOf(lang)} className="font-arabic min-h-screen bg-[#05050a] text-zinc-100 antialiased">
+    <div lang={lang} dir={dirOf(lang)} className="font-arabic min-h-screen bg-ink text-zinc-100 antialiased">
       {children}
     </div>
   );

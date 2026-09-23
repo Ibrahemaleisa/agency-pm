@@ -10,7 +10,7 @@ import { restoreValues } from "@/components/forms";
 type Copy = Dict["contact"];
 
 const field =
-  "block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-indigo-400/60 focus:bg-white/[0.07] focus:ring-4 focus:ring-indigo-500/15";
+  "block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-sand-200/60 focus:bg-white/[0.07] focus:ring-4 focus:ring-sand-200/10";
 
 export function LeadForm({ t, services }: { t: Copy; services: { key: string; title: string }[] }) {
   const [state, action] = useActionState(submitLead, undefined);
@@ -22,9 +22,9 @@ export function LeadForm({ t, services }: { t: Copy; services: { key: string; ti
 
   if (state?.ok) {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-3xl border border-emerald-400/20 bg-emerald-400/5 px-6 py-14 text-center">
-        <span className="flex size-14 items-center justify-center rounded-full bg-emerald-400/15">
-          <CheckCircle2 className="size-7 text-emerald-300" />
+      <div className="flex flex-col items-center gap-4 rounded-3xl border border-sand-200/25 bg-sand-200/5 px-6 py-14 text-center">
+        <span className="flex size-14 items-center justify-center rounded-full bg-sand-200/15">
+          <CheckCircle2 className="size-7 text-sand-200" />
         </span>
         <p className="font-display text-lg font-medium text-white">{t.success}</p>
       </div>
@@ -90,7 +90,7 @@ function SubmitButton({ label, pending }: { label: string; pending: string }) {
     <button
       type="submit"
       disabled={isPending}
-      className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3.5 font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:shadow-indigo-500/40 disabled:opacity-60 sm:w-auto"
+      className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sand-200 px-6 py-3.5 font-semibold text-ink transition hover:bg-sand-100 disabled:opacity-60 sm:w-auto"
     >
       {isPending ? pending : label}
       <Send className="size-4 transition group-hover:-translate-y-0.5 rtl:-scale-x-100" />

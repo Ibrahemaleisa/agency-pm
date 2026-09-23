@@ -3,6 +3,44 @@
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Fada brand: black, beige, white, light gray */
+  --color-ink: #0a0a0a;
+  --color-sand-50: #faf7f1;
+  --color-sand-100: #f3ecdf;
+  --color-sand-200: #e8dcc8; /* primary beige */
+  --color-sand-300: #dccab0;
+  --color-sand-400: #c9b28f;
+  --color-sand-500: #b0966f;
+  --color-sand-600: #8f7753;
+  --color-sand-700: #6f5c40;
+  --color-sand-800: #4d402d;
+  --color-sand-900: #2e271c;
+  --color-sand-950: #1a160f;
+
+  /* The app's accent ("indigo") becomes a beige→black ramp, "violet" becomes sand. */
+  --color-indigo-50: #faf6ef;
+  --color-indigo-100: #f2eadb;
+  --color-indigo-200: #e6d8bf;
+  --color-indigo-300: #d4c09c;
+  --color-indigo-400: #a8977a;
+  --color-indigo-500: #4a463f;
+  --color-indigo-600: #1c1b19;
+  --color-indigo-700: #141312;
+  --color-indigo-800: #0f0e0d;
+  --color-indigo-900: #0a0a09;
+  --color-indigo-950: #050505;
+  --color-violet-50: #faf7f1;
+  --color-violet-100: #f3ecdf;
+  --color-violet-200: #e8dcc8;
+  --color-violet-300: #dccab0;
+  --color-violet-400: #c9b28f;
+  --color-violet-500: #b0966f;
+  --color-violet-600: #8f7753;
+  --color-violet-700: #6f5c40;
+  --color-violet-800: #4d402d;
+  --color-violet-900: #2e271c;
+  --color-violet-950: #1a160f;
 }
 
 html {
@@ -12,8 +50,8 @@ html {
 
 body {
   background:
-    radial-gradient(1200px 400px at 100% -10%, rgb(99 102 241 / 0.06), transparent 60%),
-    #f7f7f9;
+    radial-gradient(1200px 400px at 100% -10%, rgb(201 178 143 / 0.12), transparent 60%),
+    #f6f5f2;
 }
 
 /* Hide scrollbars on horizontal pill rows while keeping them scrollable */
@@ -32,10 +70,10 @@ body {
   background-image:
     radial-gradient(1px 1px at 20px 30px, rgb(255 255 255 / 0.9), transparent),
     radial-gradient(1px 1px at 120px 80px, rgb(255 255 255 / 0.6), transparent),
-    radial-gradient(1.5px 1.5px at 200px 160px, rgb(199 210 254 / 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 200px 160px, rgb(232 220 200 / 0.9), transparent),
     radial-gradient(1px 1px at 300px 40px, rgb(255 255 255 / 0.7), transparent),
     radial-gradient(1px 1px at 380px 210px, rgb(255 255 255 / 0.5), transparent),
-    radial-gradient(2px 2px at 60px 250px, rgb(196 181 253 / 0.8), transparent),
+    radial-gradient(2px 2px at 60px 250px, rgb(232 220 200 / 0.7), transparent),
     radial-gradient(1px 1px at 250px 290px, rgb(255 255 255 / 0.6), transparent);
   background-size: 420px 320px;
 }
