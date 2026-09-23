@@ -45,3 +45,7 @@ uploads/
 
 # Licensed Thmanyah font files: never commit decrypted copies (only *.woff2.enc)
 /src/fonts/thmanyah/*.woff2
+
+# local scratch
+*.whl
+/v3/
