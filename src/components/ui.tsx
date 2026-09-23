@@ -1,14 +1,9 @@
 import Link from "next/link";
 import clsx from "clsx";
 import type { ComponentProps, ReactNode } from "react";
-import { format, isBefore, isToday, parseISO, startOfDay } from "date-fns";
-import type { Priority, ProjectStatus, TaskStatus } from "@/db/schema";
-import {
-  PRIORITIES,
-  PROJECT_STATUSES,
-  TASK_STATUSES,
-  type Tone,
-} from "@/lib/constants";
+import { format, isBefore, parseISO, startOfDay, type Locale } from "date-fns";
+import type { TaskStatus } from "@/db/schema";
+import type { Tone } from "@/lib/constants";
 
 export const cn = clsx;
 
@@ -205,37 +200,9 @@ export function Badge({
   );
 }
 
-export function StatusBadge({ status }: { status: TaskStatus }) {
-  const s = TASK_STATUSES.find((x) => x.value === status)!;
-  return (
-    <Badge tone={s.tone} dot>
-      {s.label}
-    </Badge>
-  );
-}
 
-export function PriorityBadge({ priority }: { priority: Priority }) {
-  const p = PRIORITIES.find((x) => x.value === priority)!;
-  if (priority === "medium" || priority === "low")
-    return <span className="text-xs text-zinc-500">{p.label}</span>;
-  return <Badge tone={p.tone}>{p.label}</Badge>;
-}
 
-export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
-  const s = PROJECT_STATUSES.find((x) => x.value === status)!;
-  return (
-    <Badge tone={s.tone} dot>
-      {s.label}
-    </Badge>
-  );
-}
 
-export function ApprovalBadge({ status }: { status: string }) {
-  if (status === "pending") return <Badge tone="amber">Awaiting approval</Badge>;
-  if (status === "approved") return <Badge tone="green">Approved</Badge>;
-  if (status === "rejected") return <Badge tone="red">Changes requested</Badge>;
-  return null;
-}
 
 export function ProgressBar({ value, className }: { value: number; className?: string }) {
   return (
@@ -296,43 +263,16 @@ export function Avatar({ name, size = "sm" }: { name?: string | null; size?: "xs
   );
 }
 
-export function Person({ name }: { name?: string | null }) {
-  return (
-    <span className="inline-flex min-w-0 items-center gap-1.5">
-      <Avatar name={name} size="xs" />
-      <span className={cn("truncate text-sm", name ? "text-zinc-700" : "text-zinc-400")}>
-        {name ?? "Unassigned"}
-      </span>
-    </span>
-  );
-}
 
 export function isOverdue(dueDate: string | null, status?: TaskStatus) {
   if (!dueDate || status === "completed") return false;
   return isBefore(parseISO(dueDate), startOfDay(new Date()));
 }
 
-export function DueDate({ date, status }: { date: string | null; status?: TaskStatus }) {
-  if (!date) return <span className="text-xs text-zinc-400">—</span>;
-  const d = parseISO(date);
-  const overdue = isOverdue(date, status);
-  const today = isToday(d) && status !== "completed";
-  return (
-    <span
-      className={cn(
-        "whitespace-nowrap text-xs tabular-nums",
-        overdue ? "font-medium text-red-600" : today ? "font-medium text-amber-700" : "text-zinc-600",
-      )}
-    >
-      {overdue ? "Overdue · " : today ? "Today · " : ""}
-      {format(d, "MMM d")}
-    </span>
-  );
-}
 
-export function formatDate(value: string | Date | null | undefined, fmt = "MMM d, yyyy") {
+export function formatDate(value: string | Date | null | undefined, fmt = "MMM d, yyyy", locale?: Locale) {
   if (!value) return "—";
-  return format(typeof value === "string" ? parseISO(value) : value, fmt);
+  return format(typeof value === "string" ? parseISO(value) : value, fmt, { locale });
 }
 
 /* ------------------------------------------------------------------ */
@@ -413,7 +353,7 @@ export function Select({
   placeholder?: string;
 }) {
   return (
-    <select {...props} className={cn(inputClass, "pr-8", props.className)}>
+    <select {...props} className={cn(inputClass, "pe-8", props.className)}>
       {placeholder !== undefined && <option value="">{placeholder}</option>}
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -444,7 +384,7 @@ export function Checkbox({ label, ...props }: ComponentProps<"input"> & { label:
 export function Table({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">{children}</table>
+      <table className="w-full text-start text-sm">{children}</table>
     </div>
   );
 }
@@ -453,7 +393,7 @@ export function Th({ children, className }: { children?: ReactNode; className?: 
   return (
     <th
       className={cn(
-        "border-b border-zinc-200 bg-zinc-50/60 px-4 py-2 text-xs font-medium whitespace-nowrap text-zinc-500",
+        "border-b border-zinc-200 bg-zinc-50/60 px-4 py-2 text-start text-xs font-medium whitespace-nowrap text-zinc-500",
         className,
       )}
     >

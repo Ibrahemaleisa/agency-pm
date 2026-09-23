@@ -7,31 +7,36 @@ import { requirePermission } from "@/lib/auth";
 import { updateLeadStatus } from "@/server/lead-actions";
 import { AutoSubmitSelect } from "@/components/forms";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { getT } from "@/lib/lang";
 
-export const metadata = { title: "Leads" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t.leads.title };
+}
 
 const STATUS = [
-  { value: "new", label: "New", tone: "violet" },
-  { value: "contacted", label: "Contacted", tone: "blue" },
-  { value: "won", label: "Won", tone: "green" },
-  { value: "lost", label: "Lost", tone: "slate" },
+  { value: "new", tone: "violet" },
+  { value: "contacted", tone: "blue" },
+  { value: "won", tone: "green" },
+  { value: "lost", tone: "slate" },
 ] as const;
 
 export default async function LeadsPage() {
   const user = await requirePermission("leads.manage");
+  const { t, locale } = await getT();
   const rows = await db.select().from(leads).where(eq(leads.orgId, user.orgId)).orderBy(desc(leads.createdAt)).limit(200);
   const open = rows.filter((r) => r.status === "new").length;
 
   return (
     <>
       <PageHeader
-        title="Leads"
-        description={`Project requests from your landing page${open ? ` · ${open} new` : ""}`}
+        title={t.leads.title}
+        description={`${t.leads.subtitle}${open ? ` · ${t.leads.newCount(open)}` : ""}`}
       />
       <Card padded={false}>
         {rows.length === 0 ? (
           <EmptyState icon={<Sparkles className="size-5" />}>
-            No requests yet. They&apos;ll appear here when someone fills in the form on your landing page.
+            {t.leads.empty}
           </EmptyState>
         ) : (
           <ul className="divide-y divide-zinc-100">
@@ -43,11 +48,11 @@ export default async function LeadsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-zinc-900">{l.name}</span>
                       <Badge tone={s.tone} dot>
-                        {s.label}
+                        {t.leads.status[s.value]}
                       </Badge>
                       {l.service && <Badge>{l.service}</Badge>}
                       <span className="text-xs text-zinc-400">
-                        {formatDistanceToNow(l.createdAt, { addSuffix: true })} · {l.lang === "ar" ? "Arabic" : "English"}
+                        {formatDistanceToNow(l.createdAt, { addSuffix: true, locale })} · {l.lang === "ar" ? t.leads.arabic : t.leads.english}
                       </span>
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-600">
@@ -76,7 +81,7 @@ export default async function LeadsPage() {
                   </div>
                   <form action={updateLeadStatus} className="shrink-0">
                     <input type="hidden" name="leadId" value={l.id} />
-                    <AutoSubmitSelect name="status" defaultValue={l.status} options={[...STATUS]} className="w-36" aria-label="Status" />
+                    <AutoSubmitSelect name="status" defaultValue={l.status} options={STATUS.map((x) => ({ value: x.value, label: t.leads.status[x.value] }))} className="w-36" aria-label={t.common.status} />
                   </form>
                 </li>
               );

@@ -3,13 +3,18 @@ import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { clients, clientTeam, projects, users } from "@/db/schema";
 import { requirePermission } from "@/lib/auth";
+import { getT } from "@/lib/lang";
 import { can } from "@/lib/permissions";
 import { Avatar, Badge, Card, EmptyState, LinkButton, PageHeader, Table, Td, Th } from "@/components/ui";
 
-export const metadata = { title: "Clients" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t.clients.title };
+}
 
 export default async function ClientsPage() {
   const user = await requirePermission("clients.view");
+  const { t } = await getT();
   const rows = await db
     .select({
       id: clients.id,
@@ -34,22 +39,22 @@ export default async function ClientsPage() {
   return (
     <>
       <PageHeader
-        title="Clients"
-        description={`${rows.filter((r) => r.active).length} active clients`}
-        actions={can(user, "clients.manage") && <LinkButton href="/clients/new">New client</LinkButton>}
+        title={t.clients.title}
+        description={t.clients.activeCount(rows.filter((r) => r.active).length)}
+        actions={can(user, "clients.manage") && <LinkButton href="/clients/new">{t.clients.newClient}</LinkButton>}
       />
       <Card padded={false}>
         {rows.length === 0 ? (
-          <EmptyState>No clients yet.</EmptyState>
+          <EmptyState>{t.clients.empty}</EmptyState>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Client</Th>
-                <Th>Primary contact</Th>
-                <Th>Open projects</Th>
-                <Th>Assigned team</Th>
-                <Th>Status</Th>
+                <Th>{t.common.client}</Th>
+                <Th>{t.clients.primaryContact}</Th>
+                <Th>{t.clients.openProjects}</Th>
+                <Th>{t.clients.assignedTeam}</Th>
+                <Th>{t.common.status}</Th>
               </tr>
             </thead>
             <tbody>
@@ -67,7 +72,7 @@ export default async function ClientsPage() {
                   </Td>
                   <Td className="tabular-nums">{c.openProjects}</Td>
                   <Td>
-                    <div className="flex -space-x-1">
+                    <div className="flex -space-x-1 rtl:space-x-reverse">
                       {team
                         .filter((t) => t.clientId === c.id)
                         .map((t) => (
@@ -77,7 +82,7 @@ export default async function ClientsPage() {
                         ))}
                     </div>
                   </Td>
-                  <Td>{c.active ? <Badge tone="green">Active</Badge> : <Badge>Inactive</Badge>}</Td>
+                  <Td>{c.active ? <Badge tone="green">{t.common.active}</Badge> : <Badge>{t.common.inactive}</Badge>}</Td>
                 </tr>
               ))}
             </tbody>

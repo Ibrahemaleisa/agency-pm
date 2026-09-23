@@ -42,3 +42,6 @@ next-env.d.ts
 uploads/
 !.env.example
 *.bundle
+
+# Licensed Thmanyah font files: never commit decrypted copies (only *.woff2.enc)
+/src/fonts/thmanyah/*.woff2

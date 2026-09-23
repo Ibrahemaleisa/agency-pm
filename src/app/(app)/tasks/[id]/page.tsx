@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { attachments, projectModules, taskComments, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { getAccessibleTask } from "@/lib/access";
+import { getT } from "@/lib/lang";
 import { can } from "@/lib/permissions";
 import { PRIORITIES, TASK_STATUSES } from "@/lib/constants";
 import { listActivity, listInternalUsers } from "@/server/queries";
@@ -24,29 +25,27 @@ import { ActivityFeed } from "@/components/lists";
 import { Highlight } from "@/components/project-chat";
 import { ActionForm, AutoSubmitSelect, ConfirmSubmit, SubmitButton } from "@/components/forms";
 import {
-  ApprovalBadge,
   Avatar,
   Badge,
   Card,
   Checkbox,
-  DueDate,
   EmptyState,
   Field,
   Input,
   PageHeader,
-  Person,
-  PriorityBadge,
   Select,
-  StatusBadge,
   Textarea,
   cn,
 } from "@/components/ui";
+import { ApprovalBadge, DueDate, Person, PriorityBadge, StatusBadge } from "@/components/labels";
 
 export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const user = await requireUser();
   const { id } = await params;
   const { task, project } = await getAccessibleTask(user, id);
   const isClient = user.role === "client";
+  const { t: tr, locale } = await getT();
+  const k = tr.task;
 
   const [mod, assignee, comments, files, history, people] = await Promise.all([
     task.moduleId ? db.query.projectModules.findFirst({ where: eq(projectModules.id, task.moduleId) }) : null,
@@ -88,7 +87,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     <>
       <PageHeader
         breadcrumb={[
-          { href: "/projects", label: "Projects" },
+          { href: "/projects", label: tr.projects.title },
           { href: `/projects/${project.id}`, label: project.name },
         ]}
         title={task.title}
@@ -100,7 +99,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             <ApprovalBadge status={task.approvalStatus} />
             {!isClient && task.clientVisible && (
               <Badge tone="amber">
-                <Eye className="size-3" /> Client can see
+                <Eye className="size-3" /> {k.clientCanSee}
               </Badge>
             )}
           </span>
@@ -111,19 +110,19 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
         <div className="min-w-0 space-y-6 lg:col-span-2">
           {canDecide && (
             <div className="rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-4 md:p-5">
-              <h2 className="text-sm font-semibold text-amber-900">Your approval is needed</h2>
+              <h2 className="text-sm font-semibold text-amber-900">{k.approvalNeeded}</h2>
               <p className="mt-1 text-sm text-amber-800">
                 Review the deliverables below, then approve or request changes.
               </p>
               <ActionForm action={decideApproval} className="mt-3 space-y-2">
                 <input type="hidden" name="taskId" value={task.id} />
-                <Textarea name="feedback" rows={2} placeholder="Feedback (required when requesting changes)" className="bg-white" />
+                <Textarea name="feedback" rows={2} placeholder={k.feedbackPlaceholder} className="bg-white" />
                 <div className="flex gap-2">
                   <SubmitButton name="decision" value="approve" variant="success">
-                    Approve
+                    {k.approve}
                   </SubmitButton>
                   <SubmitButton name="decision" value="reject" variant="danger">
-                    Request changes
+                    {k.requestChanges}
                   </SubmitButton>
                 </div>
               </ActionForm>
@@ -131,28 +130,28 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
           )}
           {!isClient && task.requiresApproval && task.approvalStatus !== "pending" && task.status !== "completed" && (
             <div className="rounded-xl border border-zinc-200/80 bg-white p-3 text-sm text-zinc-600">
-              This task needs client approval. Move it to <strong>Waiting for Client</strong> to send it for approval.
+              {k.needsApprovalHint} <strong>{tr.taskStatus.waiting_client}</strong> {k.needsApprovalHint2}
             </div>
           )}
 
-          <Card title="Description">
+          <Card title={k.description}>
             {task.description ? (
               <p className="text-sm whitespace-pre-wrap text-zinc-700">{task.description}</p>
             ) : (
-              <p className="text-sm text-zinc-400">No description.</p>
+              <p className="text-sm text-zinc-400">{k.noDescription}</p>
             )}
           </Card>
 
           <Card
             title={
               <span className="flex items-center gap-1.5">
-                <Paperclip className="size-4" /> {isClient ? "Deliverables" : "Files"}
+                <Paperclip className="size-4" /> {isClient ? k.deliverables : k.files}
               </span>
             }
             padded={false}
           >
             {files.length === 0 ? (
-              <EmptyState>No files yet.</EmptyState>
+              <EmptyState>{k.noFiles}</EmptyState>
             ) : (
               <ul className="divide-y divide-zinc-100">
                 {files.map((f) => (
@@ -162,17 +161,17 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                         {f.fileName}
                       </a>
                       <div className="text-xs text-zinc-400">
-                        {formatBytes(f.size)} · {f.uploaderName} · {formatDistanceToNow(f.createdAt, { addSuffix: true })}
+                        {formatBytes(f.size)} · {f.uploaderName} · {formatDistanceToNow(f.createdAt, { addSuffix: true, locale })}
                       </div>
                     </div>
-                    {!isClient && (f.clientVisible ? <Badge tone="amber">Shared with client</Badge> : <Badge>Internal</Badge>)}
-                    <a href={`/api/files/${f.id}`} className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title="Download">
+                    {!isClient && (f.clientVisible ? <Badge tone="amber">{k.sharedWithClient}</Badge> : <Badge>{k.internal}</Badge>)}
+                    <a href={`/api/files/${f.id}`} className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title={k.download}>
                       <Download className="size-4" />
                     </a>
                     {can(user, "tasks.setClientVisibility") && (
                       <form action={toggleAttachmentVisibility}>
                         <input type="hidden" name="attachmentId" value={f.id} />
-                        <button className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title={f.clientVisible ? "Hide from client" : "Share with client"}>
+                        <button className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title={f.clientVisible ? k.hideFromClient : k.shareWithClient}>
                           {f.clientVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                         </button>
                       </form>
@@ -180,7 +179,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                     {(f.uploaderId === user.id || user.role === "admin") && (
                       <form action={deleteAttachment}>
                         <input type="hidden" name="attachmentId" value={f.id} />
-                        <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Delete">
+                        <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title={tr.common.delete}>
                           <Trash2 className="size-4" />
                         </button>
                       </form>
@@ -196,19 +195,19 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                   type="file"
                   name="file"
                   required
-                  className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-zinc-200"
+                  className="text-sm file:me-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-zinc-200"
                 />
-                {can(user, "tasks.setClientVisibility") && <Checkbox name="clientVisible" label="Share with client" />}
-                <SubmitButton size="sm" variant="secondary" pendingText="Uploading…">
+                {can(user, "tasks.setClientVisibility") && <Checkbox name="clientVisible" label={k.shareWithClient} />}
+                <SubmitButton size="sm" variant="secondary" pendingText={k.uploading}>
                   Upload
                 </SubmitButton>
               </ActionForm>
             )}
           </Card>
 
-          <Card title={`Comments (${comments.length})`} padded={false}>
+          <Card title={k.comments(comments.length)} padded={false}>
             {comments.length === 0 ? (
-              <EmptyState>No comments yet.</EmptyState>
+              <EmptyState>{k.noComments}</EmptyState>
             ) : (
               <ul className="divide-y divide-zinc-100">
                 {comments.map((c) => (
@@ -216,19 +215,19 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                     <Avatar name={c.authorName} size="md" />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-sm font-medium">{c.authorName ?? "Deleted user"}</span>
-                        {c.authorRole === "client" && <Badge tone="amber">Client</Badge>}
+                        <span className="text-sm font-medium">{c.authorName ?? tr.common.deletedUser}</span>
+                        {c.authorRole === "client" && <Badge tone="amber">{tr.chat.clientBadge}</Badge>}
                         {!isClient &&
                           (c.internal ? (
                             <span className="flex items-center gap-1 text-xs text-zinc-500">
-                              <Lock className="size-3" /> Internal
+                              <Lock className="size-3" /> {k.internal}
                             </span>
                           ) : (
                             <span className="flex items-center gap-1 text-xs text-amber-700">
-                              <Eye className="size-3" /> Client-visible
+                              <Eye className="size-3" /> {k.clientVisible}
                             </span>
                           ))}
-                        <span className="text-xs text-zinc-400">{formatDistanceToNow(c.createdAt, { addSuffix: true })}</span>
+                        <span className="text-xs text-zinc-400">{formatDistanceToNow(c.createdAt, { addSuffix: true, locale })}</span>
                       </div>
                       <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-700">
                         <Highlight text={c.body} />
@@ -240,7 +239,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             )}
             <ActionForm action={addComment} resetOnSuccess className="space-y-2 border-t border-zinc-100 p-4">
               <input type="hidden" name="taskId" value={task.id} />
-              <Textarea name="body" rows={3} required placeholder="Write a comment… use @name to mention someone" />
+              <Textarea name="body" rows={3} required placeholder={k.commentPlaceholder} />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {!isClient ? (
                   task.clientVisible ? (
@@ -249,25 +248,25 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                       defaultValue="internal"
                       className="w-auto"
                       options={[
-                        { value: "internal", label: "🔒 Internal note (team only)" },
-                        { value: "client", label: "👁 Reply visible to client" },
+                        { value: "internal", label: k.internalNote },
+                        { value: "client", label: k.replyToClient },
                       ]}
                     />
                   ) : (
                     <span className="flex items-center gap-1 text-xs text-zinc-500">
-                      <Lock className="size-3" /> Internal — this task isn&apos;t shared with the client
+                      <Lock className="size-3" /> {k.internalOnly}
                     </span>
                   )
                 ) : (
                   <span />
                 )}
-                <SubmitButton size="sm">Comment</SubmitButton>
+                <SubmitButton size="sm">{k.comment}</SubmitButton>
               </div>
             </ActionForm>
           </Card>
 
-          <Card title="History" padded={false}>
-            <ActivityFeed items={history} showProject={false} empty="No history." />
+          <Card title={k.history} padded={false}>
+            <ActivityFeed items={history} showProject={false} empty={k.noHistory} />
           </Card>
         </div>
 
@@ -275,37 +274,41 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
         <div className="order-first min-w-0 space-y-6 lg:order-none">
           <Card>
             <dl className="space-y-4 text-sm">
-              <SideField label="Status">
+              <SideField label={tr.common.status}>
                 {can(user, "tasks.updateStatus") ? (
                   <form action={updateTaskStatus}>
                     <input type="hidden" name="taskId" value={task.id} />
-                    <AutoSubmitSelect name="status" defaultValue={task.status} options={TASK_STATUSES} />
+                    <AutoSubmitSelect
+                      name="status"
+                      defaultValue={task.status}
+                      options={TASK_STATUSES.map((x) => ({ value: x.value, label: tr.taskStatus[x.value] }))}
+                    />
                   </form>
                 ) : (
                   <StatusBadge status={task.status} />
                 )}
               </SideField>
-              <SideField label="Assignee">
+              <SideField label={tr.common.assignee}>
                 {can(user, "tasks.assign") ? (
                   <form action={assignTask}>
                     <input type="hidden" name="taskId" value={task.id} />
                     <AutoSubmitSelect
                       name="assigneeId"
                       defaultValue={task.assigneeId ?? ""}
-                      options={[{ value: "", label: "Unassigned" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
+                      options={[{ value: "", label: tr.common.unassigned }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
                     />
                   </form>
                 ) : (
                   <Person name={assignee?.name} />
                 )}
               </SideField>
-              <SideField label="Priority">
+              <SideField label={tr.common.priority}>
                 <PriorityBadge priority={task.priority} />
               </SideField>
-              <SideField label="Due date">
+              <SideField label={tr.taskForm.dueDate}>
                 <DueDate date={task.dueDate} status={task.status} />
               </SideField>
-              <SideField label="Project">
+              <SideField label={tr.common.project}>
                 <Link href={`/projects/${project.id}`} className="text-indigo-600 hover:underline">
                   {project.name}
                 </Link>
@@ -317,20 +320,20 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             <details className="group rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
               <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold select-none md:px-5">
                 <span className="flex items-center gap-2">
-                  <Pencil className="size-4 text-zinc-400" /> Edit details
+                  <Pencil className="size-4 text-zinc-400" /> {k.editDetails}
                 </span>
                 <ChevronDown className="size-4 text-zinc-400 transition group-open:rotate-180" />
               </summary>
-              <ActionForm action={updateTask} className="space-y-3 border-t border-zinc-100 p-4 md:p-5" successMessage="Task updated.">
+              <ActionForm action={updateTask} className="space-y-3 border-t border-zinc-100 p-4 md:p-5" successMessage={k.taskUpdated}>
                 <input type="hidden" name="taskId" value={task.id} />
-                <Field label="Title">
+                <Field label={tr.taskForm.title}>
                   <Input name="title" defaultValue={task.title} required />
                 </Field>
-                <Field label="Description">
+                <Field label={tr.taskForm.description}>
                   <Textarea name="description" rows={4} defaultValue={task.description ?? ""} />
                 </Field>
                 {mod && (
-                  <Field label={`${mod.name} stage`}>
+                  <Field label={k.stage(mod.name)}>
                     <Select
                       name="stage"
                       defaultValue={task.stage ?? ""}
@@ -340,30 +343,34 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                   </Field>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Priority">
-                    <Select name="priority" defaultValue={task.priority} options={PRIORITIES} />
+                  <Field label={tr.common.priority}>
+                    <Select
+                      name="priority"
+                      defaultValue={task.priority}
+                      options={PRIORITIES.map((x) => ({ value: x.value, label: tr.priority[x.value] }))}
+                    />
                   </Field>
-                  <Field label="Due date">
+                  <Field label={tr.taskForm.dueDate}>
                     <Input type="date" name="dueDate" defaultValue={task.dueDate ?? ""} />
                   </Field>
                 </div>
                 {can(user, "tasks.setClientVisibility") && (
                   <div className="space-y-2">
-                    <Checkbox name="clientVisible" defaultChecked={task.clientVisible} label="Visible to client" />
-                    <Checkbox name="requiresApproval" defaultChecked={task.requiresApproval} label="Requires client approval" />
+                    <Checkbox name="clientVisible" defaultChecked={task.clientVisible} label={tr.taskForm.visibleToClient} />
+                    <Checkbox name="requiresApproval" defaultChecked={task.requiresApproval} label={tr.taskForm.requiresApproval} />
                   </div>
                 )}
                 <div className="flex justify-end">
-                  <SubmitButton size="sm">Save</SubmitButton>
+                  <SubmitButton size="sm">{tr.common.save}</SubmitButton>
                 </div>
               </ActionForm>
             </details>
           )}
 
           {can(user, "tasks.delete") && (
-            <form action={deleteTask} className="text-right">
+            <form action={deleteTask} className="text-end">
               <input type="hidden" name="taskId" value={task.id} />
-              <ConfirmSubmit message="Delete this task permanently?">Delete task</ConfirmSubmit>
+              <ConfirmSubmit message={k.deleteConfirm}>{k.deleteTask}</ConfirmSubmit>
             </form>
           )}
         </div>

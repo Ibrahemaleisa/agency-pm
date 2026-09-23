@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { cn } from "./ui";
 import { FadaMark } from "./site/brand";
+import { LangSwitch } from "./site/lang-switch";
+import type { Lang } from "@/lib/i18n";
 import { logoutAction } from "@/server/auth-actions";
 
 const ICONS = {
@@ -51,11 +53,15 @@ export function Sidebar({
   user,
   orgName,
   initialUnread,
+  lang,
+  labels,
 }: {
   items: NavItem[];
   user: { name: string; roleLabel: string };
   orgName: string;
   initialUnread: number;
+  lang: Lang;
+  labels: { more: string; signOut: string; alerts: string; workspace: string; close: string };
 }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -76,8 +82,8 @@ export function Sidebar({
   return (
     <>
       {/* ---------------- Desktop sidebar ---------------- */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-ink text-zinc-300 md:flex">
-        <Brand orgName={orgName} />
+      <aside className="fixed inset-y-0 start-0 z-20 hidden w-64 flex-col bg-ink text-zinc-300 md:flex">
+        <Brand orgName={orgName} workspace={labels.workspace} />
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
           {items.map((item, i) => {
             const Icon = ICONS[item.icon];
@@ -98,7 +104,7 @@ export function Sidebar({
                     active ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white",
                   )}
                 >
-                  {active && <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-sand-300" />}
+                  {active && <span className="absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-sand-300" />}
                   <Icon className={cn("size-4 shrink-0", active ? "text-sand-300" : "text-zinc-500 group-hover:text-zinc-300")} />
                   <span className="flex-1">{item.label}</span>
                   {!!badge && (
@@ -121,11 +127,12 @@ export function Sidebar({
               <div className="truncate text-xs text-zinc-500">{user.roleLabel}</div>
             </div>
             <form action={logoutAction}>
-              <button title="Sign out" className="rounded-md p-1.5 text-zinc-500 hover:bg-white/10 hover:text-white">
-                <LogOut className="size-4" />
+              <button title={labels.signOut} className="rounded-md p-1.5 text-zinc-500 hover:bg-white/10 hover:text-white">
+                <LogOut className="size-4 rtl:-scale-x-100" />
               </button>
             </form>
           </div>
+          <LangSwitch lang={lang} next={pathname} className="mx-2 mt-2 w-fit" />
         </div>
       </aside>
 
@@ -135,9 +142,12 @@ export function Sidebar({
           <Logo orgName={orgName} uid="fm-mobile" variant="light" />
           <span className="text-[15px] font-semibold">{orgName}</span>
         </div>
-        <span className="flex size-8 items-center justify-center rounded-full bg-sand-200 text-xs font-semibold text-ink">
-          {initials}
-        </span>
+        <div className="flex items-center gap-2">
+          <LangSwitch lang={lang} next={pathname} tone="light" />
+          <span className="flex size-8 items-center justify-center rounded-full bg-sand-200 text-xs font-semibold text-ink">
+            {initials}
+          </span>
+        </div>
       </header>
 
       {/* ---------------- Mobile bottom tab bar ---------------- */}
@@ -162,12 +172,12 @@ export function Sidebar({
                 <span className="relative">
                   <Icon className="size-6" strokeWidth={active ? 2.2 : 1.8} />
                   {!!badge && (
-                    <span className="absolute -top-1 -right-2 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 font-semibold text-white">
+                    <span className="absolute -top-1 -end-2 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 font-semibold text-white">
                       {badge > 9 ? "9+" : badge}
                     </span>
                   )}
                 </span>
-                {item.label === "Notifications" ? "Alerts" : item.label}
+                {item.icon === "notifications" ? labels.alerts : item.label}
               </Link>
             );
           })}
@@ -179,7 +189,7 @@ export function Sidebar({
             )}
           >
             <Menu className="size-6" strokeWidth={1.8} />
-            More
+            {labels.more}
           </button>
         </div>
       </nav>
@@ -198,7 +208,7 @@ export function Sidebar({
                 <div className="font-semibold">{user.name}</div>
                 <div className="text-xs text-zinc-500">{user.roleLabel}</div>
               </div>
-              <button onClick={() => setMoreOpen(false)} className="rounded-full p-2 hover:bg-zinc-100" aria-label="Close">
+              <button onClick={() => setMoreOpen(false)} className="rounded-full p-2 hover:bg-zinc-100" aria-label={labels.close}>
                 <X className="size-5" />
               </button>
             </div>
@@ -219,7 +229,7 @@ export function Sidebar({
                     <Icon className="size-5" />
                     {item.label}
                     {!!badge && (
-                      <span className="absolute top-1.5 right-1.5 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                      <span className="absolute top-1.5 end-1.5 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
                         {badge}
                       </span>
                     )}
@@ -228,8 +238,8 @@ export function Sidebar({
               })}
               <form action={logoutAction} className="contents">
                 <button className="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 px-2 py-3 text-xs font-medium text-red-600">
-                  <LogOut className="size-5" />
-                  Sign out
+                  <LogOut className="size-5 rtl:-scale-x-100" />
+                  {labels.signOut}
                 </button>
               </form>
             </div>
@@ -244,13 +254,13 @@ function Logo({ orgName, uid, variant }: { orgName: string; uid: string; variant
   return <FadaMark className="h-8" uid={uid} label={orgName} variant={variant} />;
 }
 
-function Brand({ orgName }: { orgName: string }) {
+function Brand({ orgName, workspace }: { orgName: string; workspace: string }) {
   return (
     <div className="flex h-16 items-center gap-3 px-5">
       <Logo orgName={orgName} uid="fm-desktop" variant="dark" />
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold text-white">{orgName}</div>
-        <div className="text-[11px] text-zinc-500">Workspace</div>
+        <div className="text-[11px] text-zinc-500">{workspace}</div>
       </div>
     </div>
   );

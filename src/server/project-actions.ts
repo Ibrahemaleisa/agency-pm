@@ -23,6 +23,9 @@ import { getProjectAudience, logActivity, notify, resolveMentions } from "@/lib/
 import { addModuleToProject } from "@/lib/modules";
 import { str, type ActionState } from "@/lib/action-state";
 import { projectStatusLabel } from "@/lib/constants";
+import { getT } from "@/lib/lang";
+
+const msg = async () => (await getT()).t.actions;
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -48,16 +51,16 @@ export async function createProject(_prev: ActionState, fd: FormData): Promise<A
   assertCan(user, "projects.manage");
   const name = str(fd, "name");
   const clientId = str(fd, "clientId");
-  if (!name) return { error: "Project name is required." };
-  if (!clientId) return { error: "Choose a client." };
+  if (!name) return { error: (await msg()).projectNameRequired };
+  if (!clientId) return { error: (await msg()).chooseClient };
   const client = await db.query.clients.findFirst({
     where: and(eq(clients.id, clientId), eq(clients.orgId, user.orgId)),
   });
-  if (!client) return { error: "Invalid client." };
+  if (!client) return { error: (await msg()).invalidClient };
 
   const startDate = str(fd, "startDate");
   const endDate = str(fd, "endDate");
-  if (startDate && endDate && endDate < startDate) return { error: "End date must be after start date." };
+  if (startDate && endDate && endDate < startDate) return { error: (await msg()).endAfterStart };
 
   const ownerId = (await validInternalUserIds(user, [str(fd, "ownerId") ?? user.id]))[0] ?? user.id;
   const [project] = await db
@@ -109,10 +112,10 @@ export async function updateProject(_prev: ActionState, fd: FormData): Promise<A
   assertCan(user, "projects.manage");
   const project = await getAccessibleProject(user, str(fd, "projectId") ?? "");
   const name = str(fd, "name");
-  if (!name) return { error: "Project name is required." };
+  if (!name) return { error: (await msg()).projectNameRequired };
   const startDate = str(fd, "startDate");
   const endDate = str(fd, "endDate");
-  if (startDate && endDate && endDate < startDate) return { error: "End date must be after start date." };
+  if (startDate && endDate && endDate < startDate) return { error: (await msg()).endAfterStart };
   const status = parseProjectStatus(str(fd, "status"));
   const ownerId = (await validInternalUserIds(user, [str(fd, "ownerId") ?? ""]))[0] ?? project.ownerId;
 
@@ -198,7 +201,7 @@ export async function updateModuleFields(_prev: ActionState, fd: FormData): Prom
   const mod = await db.query.projectModules.findFirst({
     where: and(eq(projectModules.id, str(fd, "moduleId") ?? ""), eq(projectModules.projectId, project.id)),
   });
-  if (!mod) return { error: "Module not found." };
+  if (!mod) return { error: (await msg()).moduleNotFound };
   const values: Record<string, string> = {};
   for (const f of mod.fields) {
     const v = str(fd, `field_${f.key}`);
@@ -222,7 +225,7 @@ export async function sendChatMessage(_prev: ActionState, fd: FormData): Promise
   const user = await requireUser();
   const project = await getAccessibleProject(user, str(fd, "projectId") ?? "");
   const body = str(fd, "body");
-  if (!body) return { error: "Message cannot be empty." };
+  if (!body) return { error: (await msg()).messageEmpty };
   const channel = str(fd, "channel") === "client" ? "client" : "internal";
   assertCan(user, channel === "client" ? "chat.client" : "chat.internal");
 

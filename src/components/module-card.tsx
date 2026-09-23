@@ -2,10 +2,11 @@ import { Check } from "lucide-react";
 import type { ProjectModule } from "@/db/schema";
 import type { TaskRow } from "@/server/queries";
 import { summarizeModule } from "@/lib/modules";
+import { getT } from "@/lib/lang";
 import { TaskTable } from "./lists";
 import { Badge, ProgressBar, cn, formatDate } from "./ui";
 
-export function ModuleCard({
+export async function ModuleCard({
   mod,
   allTasks,
   visibleTasks,
@@ -18,7 +19,9 @@ export function ModuleCard({
   visibleTasks: TaskRow[];
   editableStatus: boolean;
 }) {
+  const { t, locale } = await getT();
   const summary = summarizeModule(mod, allTasks);
+  const currentLabel = summary.currentStage === "Done" ? t.taskStatus.completed : summary.currentStage;
   const filledFields = mod.fields.filter((f) => mod.fieldValues[f.key]);
 
   return (
@@ -27,7 +30,7 @@ export function ModuleCard({
         <div className="flex items-center gap-2">
           <Badge tone={mod.color}>{mod.name}</Badge>
           <span className="text-sm text-zinc-500">
-            Current stage: <span className="font-medium text-zinc-900">{summary.currentStage}</span>
+            {t.projects.currentStage}: <span className="font-medium text-zinc-900">{currentLabel}</span>
           </span>
         </div>
         <div className="flex w-48 items-center gap-2">
@@ -41,7 +44,7 @@ export function ModuleCard({
         {summary.stages.map((s, i) => {
           const current = s.name === summary.currentStage;
           return (
-            <li key={s.name} className="flex min-w-0 flex-1 flex-col gap-1" title={`${s.name}${s.clientApproval ? " (client approval)" : ""}`}>
+            <li key={s.name} className="flex min-w-0 flex-1 flex-col gap-1" title={`${s.name}${s.clientApproval ? ` (${t.projects.clientApprovalStage})` : ""}`}>
               <div
                 className={cn(
                   "h-1.5 rounded-full",
@@ -70,11 +73,11 @@ export function ModuleCard({
               <dt className="text-xs text-zinc-500">{f.label}</dt>
               <dd className="truncate text-zinc-800">
                 {f.type === "date"
-                  ? formatDate(mod.fieldValues[f.key])
+                  ? formatDate(mod.fieldValues[f.key], undefined, locale)
                   : f.type === "url"
                     ? (
                       <a href={mod.fieldValues[f.key]} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
-                        Link
+                        {t.projects.link}
                       </a>
                     )
                     : mod.fieldValues[f.key]}
@@ -89,7 +92,7 @@ export function ModuleCard({
           tasks={visibleTasks}
           showProject={false}
           editableStatus={editableStatus}
-          empty="No visible tasks in this module yet."
+          empty={t.projects.noVisibleTasks}
         />
       </div>
     </section>

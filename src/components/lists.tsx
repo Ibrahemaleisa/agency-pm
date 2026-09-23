@@ -1,22 +1,17 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { getT } from "@/lib/lang";
 import { AlertTriangle, CalendarDays, ChevronRight, Clock, Inbox } from "lucide-react";
 import type { ActivityRow, ProjectRow, TaskRow } from "@/server/queries";
 import { updateTaskStatus } from "@/server/task-actions";
 import { TASK_STATUSES } from "@/lib/constants";
 import { AutoSubmitSelect } from "./forms";
 import {
-  ApprovalBadge,
   Avatar,
   Badge,
-  DueDate,
   EmptyState,
   formatDate,
-  Person,
-  PriorityBadge,
   ProgressBar,
-  ProjectStatusBadge,
-  StatusBadge,
   Table,
   Td,
   Th,
@@ -24,34 +19,36 @@ import {
   isOverdue,
   toneDot,
 } from "./ui";
+import { ApprovalBadge, DueDate, Person, PriorityBadge, ProjectStatusBadge, StatusBadge } from "./labels";
 
 /* ------------------------------------------------------------------ */
 /* Tasks                                                               */
 /* ------------------------------------------------------------------ */
 
-function StatusControl({ task, editable, className }: { task: TaskRow; editable: boolean; className?: string }) {
+async function StatusControl({ task, editable, className }: { task: TaskRow; editable: boolean; className?: string }) {
   if (!editable) return <StatusBadge status={task.status} />;
+  const { t } = await getT();
   return (
     <form action={updateTaskStatus} className={className}>
       <input type="hidden" name="taskId" value={task.id} />
       <AutoSubmitSelect
         name="status"
         defaultValue={task.status}
-        options={TASK_STATUSES}
+        options={TASK_STATUSES.map((s) => ({ value: s.value, label: t.taskStatus[s.value] }))}
         className="w-40 min-w-40 text-xs"
-        aria-label="Status"
+        aria-label={t.common.status}
       />
     </form>
   );
 }
 
 /** Tasks as a table on desktop and as tappable cards on phones. */
-export function TaskTable({
+export async function TaskTable({
   tasks,
   showProject = true,
   editableStatus = false,
   showAssignee = true,
-  empty = "No tasks here.",
+  empty,
 }: {
   tasks: TaskRow[];
   showProject?: boolean;
@@ -59,7 +56,8 @@ export function TaskTable({
   showAssignee?: boolean;
   empty?: string;
 }) {
-  if (tasks.length === 0) return <EmptyState icon={<Inbox className="size-5" />}>{empty}</EmptyState>;
+  const { t: tr } = await getT();
+  if (tasks.length === 0) return <EmptyState icon={<Inbox className="size-5" />}>{empty ?? tr.common.noTasks}</EmptyState>;
   return (
     <>
       {/* Phone: cards */}
@@ -79,9 +77,9 @@ export function TaskTable({
                     {(t.priority === "high" || t.priority === "urgent") && <PriorityBadge priority={t.priority} />}
                   </span>
                 </span>
-                <ChevronRight className="mt-1 size-4 shrink-0 text-zinc-300" />
+                <ChevronRight className="mt-1 size-4 shrink-0 text-zinc-300 rtl:rotate-180" />
               </Link>
-              <div className="mt-2 flex items-center justify-between gap-2 pl-5">
+              <div className="mt-2 flex items-center justify-between gap-2 ps-5">
                 <span className="flex items-center gap-3">
                   {showAssignee && <Avatar name={t.assigneeName} size="sm" />}
                   <DueDate date={t.dueDate} status={t.status} />
@@ -98,12 +96,12 @@ export function TaskTable({
         <Table>
           <thead>
             <tr>
-              <Th>Task</Th>
-              {showProject && <Th>Project</Th>}
-              {showAssignee && <Th>Assignee</Th>}
-              <Th>Status</Th>
-              <Th>Priority</Th>
-              <Th>Due</Th>
+              <Th>{tr.common.task}</Th>
+              {showProject && <Th>{tr.common.project}</Th>}
+              {showAssignee && <Th>{tr.common.assignee}</Th>}
+              <Th>{tr.common.status}</Th>
+              <Th>{tr.common.priority}</Th>
+              <Th>{tr.common.due}</Th>
             </tr>
           </thead>
           <tbody>
@@ -151,7 +149,8 @@ export function TaskTable({
 }
 
 /** Kanban-style board: one column per status. Scrolls sideways on small screens. */
-export function TaskBoard({ tasks, editableStatus }: { tasks: TaskRow[]; editableStatus: boolean }) {
+export async function TaskBoard({ tasks, editableStatus }: { tasks: TaskRow[]; editableStatus: boolean }) {
+  const { t: tr } = await getT();
   return (
     <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:px-0">
       {TASK_STATUSES.map((s) => {
@@ -161,7 +160,7 @@ export function TaskBoard({ tasks, editableStatus }: { tasks: TaskRow[]; editabl
             <header className="flex items-center justify-between px-2 py-1.5">
               <span className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
                 <span className={cn("size-2 rounded-full", toneDot[s.tone])} />
-                {s.label}
+                {tr.taskStatus[s.value]}
               </span>
               <span className="rounded-full bg-white px-2 text-xs font-medium text-zinc-500 tabular-nums">{col.length}</span>
             </header>
@@ -191,7 +190,7 @@ export function TaskBoard({ tasks, editableStatus }: { tasks: TaskRow[]; editabl
                   )}
                 </article>
               ))}
-              {col.length === 0 && <div className="rounded-lg border border-dashed border-zinc-300 py-6 text-center text-xs text-zinc-400">Nothing here</div>}
+              {col.length === 0 && <div className="rounded-lg border border-dashed border-zinc-300 py-6 text-center text-xs text-zinc-400">{tr.common.nothingHere}</div>}
             </div>
           </section>
         );
@@ -205,8 +204,9 @@ export function TaskBoard({ tasks, editableStatus }: { tasks: TaskRow[]; editabl
 /* ------------------------------------------------------------------ */
 
 /** Projects as visual cards in a responsive grid. */
-export function ProjectGrid({ projects, showClient = true }: { projects: ProjectRow[]; showClient?: boolean }) {
-  if (projects.length === 0) return <EmptyState icon={<Inbox className="size-5" />}>No projects found.</EmptyState>;
+export async function ProjectGrid({ projects, showClient = true }: { projects: ProjectRow[]; showClient?: boolean }) {
+  const { t: tr, locale } = await getT();
+  if (projects.length === 0) return <EmptyState icon={<Inbox className="size-5" />}>{tr.common.noProjects}</EmptyState>;
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {projects.map((p) => (
@@ -234,7 +234,7 @@ export function ProjectGrid({ projects, showClient = true }: { projects: Project
           <div className="mt-4">
             <div className="mb-1.5 flex items-baseline justify-between text-xs">
               <span className="text-zinc-500">
-                {p.done} of {p.total} tasks done
+                {tr.lists.tasksDone(p.done, p.total)}
               </span>
               <span className="font-semibold text-zinc-900 tabular-nums">{p.progress}%</span>
             </div>
@@ -244,12 +244,12 @@ export function ProjectGrid({ projects, showClient = true }: { projects: Project
           <div className="mt-4 flex flex-wrap gap-1.5">
             {p.overdue > 0 && (
               <Badge tone="red">
-                <AlertTriangle className="size-3" /> {p.overdue} overdue
+                <AlertTriangle className="size-3" /> {tr.lists.overdueCount(p.overdue)}
               </Badge>
             )}
             {p.waiting > 0 && (
               <Badge tone="amber">
-                <Clock className="size-3" /> {p.waiting} awaiting approval
+                <Clock className="size-3" /> {tr.lists.awaitingCount(p.waiting)}
               </Badge>
             )}
           </div>
@@ -258,7 +258,7 @@ export function ProjectGrid({ projects, showClient = true }: { projects: Project
             <Person name={p.ownerName} />
             <span className="flex items-center gap-1 tabular-nums">
               <CalendarDays className="size-3.5" />
-              {formatDate(p.endDate, "MMM d")}
+              {formatDate(p.endDate, "MMM d", locale)}
             </span>
           </div>
         </Link>
@@ -268,17 +268,18 @@ export function ProjectGrid({ projects, showClient = true }: { projects: Project
 }
 
 /** Compact table version, used where space is tight. */
-export function ProjectTable({ projects, showClient = true }: { projects: ProjectRow[]; showClient?: boolean }) {
-  if (projects.length === 0) return <EmptyState>No projects found.</EmptyState>;
+export async function ProjectTable({ projects, showClient = true }: { projects: ProjectRow[]; showClient?: boolean }) {
+  const { t: tr } = await getT();
+  if (projects.length === 0) return <EmptyState>{tr.common.noProjects}</EmptyState>;
   return (
     <Table>
       <thead>
         <tr>
-          <Th>Project</Th>
-          {showClient && <Th>Client</Th>}
-          <Th>Status</Th>
-          <Th className="w-44">Progress</Th>
-          <Th>Attention</Th>
+          <Th>{tr.common.project}</Th>
+          {showClient && <Th>{tr.common.client}</Th>}
+          <Th>{tr.common.status}</Th>
+          <Th className="w-44">{tr.common.progress}</Th>
+          <Th>{tr.common.attention}</Th>
         </tr>
       </thead>
       <tbody>
@@ -296,13 +297,13 @@ export function ProjectTable({ projects, showClient = true }: { projects: Projec
             <Td>
               <div className="flex min-w-32 items-center gap-2">
                 <ProgressBar value={p.progress} />
-                <span className="w-9 text-right text-xs text-zinc-500 tabular-nums">{p.progress}%</span>
+                <span className="w-9 text-end text-xs text-zinc-500 tabular-nums">{p.progress}%</span>
               </div>
             </Td>
             <Td>
               <div className="flex flex-wrap gap-1">
-                {p.overdue > 0 && <Badge tone="red">{p.overdue} overdue</Badge>}
-                {p.waiting > 0 && <Badge tone="amber">{p.waiting} awaiting</Badge>}
+                {p.overdue > 0 && <Badge tone="red">{tr.lists.overdueCount(p.overdue)}</Badge>}
+                {p.waiting > 0 && <Badge tone="amber">{tr.lists.awaitingShort(p.waiting)}</Badge>}
                 {p.overdue === 0 && p.waiting === 0 && <span className="text-xs text-zinc-400">—</span>}
               </div>
             </Td>
@@ -317,19 +318,20 @@ export function ProjectTable({ projects, showClient = true }: { projects: Projec
 /* Activity                                                            */
 /* ------------------------------------------------------------------ */
 
-export function ActivityFeed({
+export async function ActivityFeed({
   items,
   showProject = true,
-  empty = "No activity yet.",
+  empty,
 }: {
   items: ActivityRow[];
   showProject?: boolean;
   empty?: string;
 }) {
-  if (items.length === 0) return <EmptyState>{empty}</EmptyState>;
+  const { t: tr, locale } = await getT();
+  if (items.length === 0) return <EmptyState>{empty ?? tr.common.noActivity}</EmptyState>;
   return (
     <ul className="relative px-4 py-2 md:px-5">
-      <span className="absolute top-4 bottom-4 left-[27px] w-px bg-zinc-100 md:left-[31px]" />
+      <span className="absolute top-4 bottom-4 start-[27px] w-px bg-zinc-100 md:start-[31px]" />
       {items.map((a) => (
         <li key={a.id} className="relative flex gap-3 py-2.5 text-sm">
           <span className="relative z-10 mt-0.5">
@@ -337,7 +339,7 @@ export function ActivityFeed({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-zinc-600">
-              <span className="font-medium text-zinc-900">{a.actorName ?? "System"}</span>{" "}
+              <span className="font-medium text-zinc-900">{a.actorName ?? tr.common.system}</span>{" "}
               {a.taskId ? (
                 <Link href={`/tasks/${a.taskId}`} className="hover:text-indigo-600">
                   {a.summary}
@@ -348,7 +350,7 @@ export function ActivityFeed({
             </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-400">
               <span className={cn("size-1.5 rounded-full", activityDot(a.action))} />
-              {formatDistanceToNow(a.createdAt, { addSuffix: true })}
+              {formatDistanceToNow(a.createdAt, { addSuffix: true, locale })}
               {showProject && a.projectName && a.projectId && (
                 <>
                   <span>·</span>

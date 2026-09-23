@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { requireUser, type SessionUser } from "@/lib/auth";
 import { getAccessibleProject } from "@/lib/access";
+import { getT } from "@/lib/lang";
 import { can } from "@/lib/permissions";
 import { TASK_STATUSES } from "@/lib/constants";
 import { summarizeModule } from "@/lib/modules";
@@ -37,12 +38,12 @@ import {
   Input,
   PageHeader,
   ProgressBar,
-  ProjectStatusBadge,
   Select,
   Textarea,
   cn,
   formatDate,
 } from "@/components/ui";
+import { ProjectStatusBadge } from "@/components/labels";
 
 type Tab = "overview" | "tasks" | "chat" | "activity" | "settings";
 
@@ -51,14 +52,15 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   const { id } = await params;
   const sp = await searchParams;
   const project = await getAccessibleProject(user, id);
+  const { t: tr, locale } = await getT();
 
   const tabs: { value: Tab; label: string }[] = [
-    { value: "overview", label: "Overview" },
-    { value: "tasks", label: "Tasks" },
-    { value: "chat", label: "Chat" },
-    { value: "activity", label: "Activity" },
+    { value: "overview", label: tr.projects.tabs.overview },
+    { value: "tasks", label: tr.projects.tabs.tasks },
+    { value: "chat", label: tr.projects.tabs.chat },
+    { value: "activity", label: tr.projects.tabs.activity },
   ];
-  if (can(user, "projects.manage")) tabs.push({ value: "settings", label: "Settings" });
+  if (can(user, "projects.manage")) tabs.push({ value: "settings", label: tr.projects.tabs.settings });
   const tab = (tabs.find((t) => t.value === sp.tab)?.value ?? "overview") as Tab;
 
   const [client, modules, allTasks, members, owner] = await Promise.all([
@@ -84,7 +86,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
     <>
       <PageHeader
         breadcrumb={[
-          { href: "/projects", label: "Projects" },
+          { href: "/projects", label: tr.projects.title },
           ...(can(user, "clients.view") && client ? [{ href: `/clients/${client.id}`, label: client.name }] : []),
         ]}
         title={
@@ -96,13 +98,13 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
       />
 
       <div className="mb-5 grid grid-cols-2 gap-4 rounded-xl border border-zinc-200/80 bg-white p-4 text-sm shadow-[0_1px_2px_rgb(0_0_0/0.04)] md:grid-cols-5 md:p-5">
-        <Meta label="Client">{client?.name}</Meta>
-        <Meta label="Timeline">
-          {formatDate(project.startDate, "MMM d")} – {formatDate(project.endDate, "MMM d, yyyy")}
+        <Meta label={tr.common.client}>{client?.name}</Meta>
+        <Meta label={tr.projects.timeline}>
+          {formatDate(project.startDate, "MMM d", locale)} – {formatDate(project.endDate, "MMM d, yyyy", locale)}
         </Meta>
-        <Meta label="Owner">{owner?.name ?? "—"}</Meta>
-        <Meta label="Team">
-          <span className="flex -space-x-1">
+        <Meta label={tr.common.owner}>{owner?.name ?? "—"}</Meta>
+        <Meta label={tr.projects.team}>
+          <span className="flex -space-x-1 rtl:space-x-reverse">
             {members.slice(0, 6).map((m) => (
               <span key={m.id} className="rounded-full ring-2 ring-white">
                 <Avatar name={m.name} />
@@ -111,7 +113,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             {members.length === 0 && "—"}
           </span>
         </Meta>
-        <Meta label="Progress">
+        <Meta label={tr.common.progress}>
           <span className="flex items-center gap-2">
             <ProgressBar value={progress} />
             <span className="text-xs tabular-nums">{progress}%</span>
@@ -179,6 +181,7 @@ async function OverviewTab({
   modules: ProjectModule[];
   allTasks: { moduleId: string | null; stage: string | null; status: (typeof TASK_STATUSES)[number]["value"] }[];
 }) {
+  const { t: tr } = await getT();
   const visible = await listTasks(user, { projectId: project.id });
   const general = visible.filter((t) => !t.moduleId);
   const templates = can(user, "projects.manage")
@@ -189,7 +192,9 @@ async function OverviewTab({
     <div className="space-y-5">
       {modules.length === 0 && (
         <Card>
-          <EmptyState>No modules yet. {can(user, "projects.manage") && "Add one below to generate its workflow."}</EmptyState>
+          <EmptyState>
+            {tr.projects.noModules} {can(user, "projects.manage") && tr.projects.addModuleHint}
+          </EmptyState>
         </Card>
       )}
       {modules.map((m) => (
@@ -202,18 +207,18 @@ async function OverviewTab({
         />
       ))}
       {general.length > 0 && (
-        <Card title="General tasks" padded={false}>
+        <Card title={tr.projects.generalTasks} padded={false}>
           <TaskTable tasks={general} showProject={false} editableStatus={can(user, "tasks.updateStatus")} />
         </Card>
       )}
       {templates.length > 0 && (
         <form action={addModule} className="flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-zinc-300 bg-white/50 p-4">
           <input type="hidden" name="projectId" value={project.id} />
-          <Field label="Add a module to this project" className="w-64">
+          <Field label={tr.projects.addModuleLabel} className="w-64">
             <Select name="templateId" required options={templates.map((t) => ({ value: t.id, label: t.name }))} />
           </Field>
-          <Button variant="secondary">Add module</Button>
-          <span className="text-xs text-zinc-500">Creates the module&apos;s workflow tasks automatically.</span>
+          <Button variant="secondary">{tr.projects.addModule}</Button>
+          <span className="text-xs text-zinc-500">{tr.projects.addModuleNote}</span>
         </form>
       )}
     </div>
@@ -235,6 +240,7 @@ async function TasksTab({
   status: string;
   view: "board" | "list";
 }) {
+  const { t: tr } = await getT();
   const all = await listTasks(user, { projectId: project.id });
   const shown =
     status === "all" ? all : status === "open" ? all.filter((t) => t.status !== "completed") : all.filter((t) => t.status === status);
@@ -245,7 +251,7 @@ async function TasksTab({
       {can(user, "tasks.create") && (
         <details className="group rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-indigo-600 select-none">
-            <Plus className="size-4 transition group-open:rotate-45" /> New task
+            <Plus className="size-4 transition group-open:rotate-45" /> {tr.projects.newTask}
           </summary>
           <div className="border-t border-zinc-100 p-4">
             <TaskCreateForm
@@ -271,11 +277,11 @@ async function TasksTab({
               )}
             >
               {v === "board" ? <Columns3 className="size-4" /> : <List className="size-4" />}
-              {v === "board" ? "Board" : "List"}
+              {v === "board" ? tr.lists.board : tr.lists.list}
             </Link>
           ))}
         </div>
-        <span className="text-xs text-zinc-500">{all.length} tasks</span>
+        <span className="text-xs text-zinc-500">{tr.lists.tasksCount(all.length)}</span>
       </div>
       {view === "board" ? (
         <TaskBoard tasks={all} editableStatus={can(user, "tasks.updateStatus")} />
@@ -284,9 +290,9 @@ async function TasksTab({
           <FilterTabs
             current={status}
             options={[
-              { value: "open", label: "Open", count: all.filter((t) => t.status !== "completed").length },
-              ...TASK_STATUSES.map((s) => ({ value: s.value, label: s.label, count: all.filter((t) => t.status === s.value).length })),
-              { value: "all", label: "All", count: all.length },
+              { value: "open", label: tr.common.open, count: all.filter((t) => t.status !== "completed").length },
+              ...TASK_STATUSES.map((s) => ({ value: s.value, label: tr.taskStatus[s.value], count: all.filter((t) => t.status === s.value).length })),
+              { value: "all", label: tr.common.all, count: all.length },
             ]}
             hrefFor={(v) => `/projects/${project.id}?tab=tasks&view=list&status=${v}`}
           />
@@ -349,6 +355,7 @@ async function SettingsTab({
   modules: ProjectModule[];
   memberIds: string[];
 }) {
+  const { t: tr } = await getT();
   const people = await listInternalUsers(user.orgId);
   const moduleTasks = await db
     .select({ moduleId: tasks.moduleId, stage: tasks.stage, status: tasks.status })
@@ -357,13 +364,13 @@ async function SettingsTab({
 
   return (
     <div className="grid gap-6 lg:grid-cols-5">
-      <Card title="Project details" className="lg:col-span-3">
-        <ProjectForm action={updateProject} project={project} people={people} memberIds={memberIds} submitLabel="Save changes" />
+      <Card title={tr.projects.projectDetails} className="lg:col-span-3">
+        <ProjectForm action={updateProject} project={project} people={people} memberIds={memberIds} submitLabel={tr.projectForm.saveChanges} />
       </Card>
       <div className="min-w-0 space-y-4 lg:col-span-2">
         {modules.length === 0 && (
           <Card>
-            <EmptyState>No modules. Add one from the Overview tab.</EmptyState>
+            <EmptyState>{tr.projects.noModulesSettings}</EmptyState>
           </Card>
         )}
         {modules.map((m) => {
@@ -374,20 +381,18 @@ async function SettingsTab({
               title={
                 <span className="flex items-center gap-2">
                   <Badge tone={m.color}>{m.name}</Badge>
-                  <span className="text-xs font-normal text-zinc-500">{s.total} tasks</span>
+                  <span className="text-xs font-normal text-zinc-500">{tr.lists.tasksCount(s.total)}</span>
                 </span>
               }
               actions={
                 <form action={removeModule}>
                   <input type="hidden" name="projectId" value={project.id} />
                   <input type="hidden" name="moduleId" value={m.id} />
-                  <ConfirmSubmit message={`Remove the ${m.name} module and its ${s.total} tasks? This cannot be undone.`}>
-                    Remove
-                  </ConfirmSubmit>
+                  <ConfirmSubmit message={tr.projects.removeModuleConfirm(m.name, s.total)}>{tr.common.remove}</ConfirmSubmit>
                 </form>
               }
             >
-              <ActionForm action={updateModuleFields} className="space-y-3" successMessage="Saved.">
+              <ActionForm action={updateModuleFields} className="space-y-3" successMessage={tr.common.saved}>
                 <input type="hidden" name="projectId" value={project.id} />
                 <input type="hidden" name="moduleId" value={m.id} />
                 {m.fields.map((f) => (
@@ -406,10 +411,10 @@ async function SettingsTab({
                     )}
                   </Field>
                 ))}
-                {m.fields.length === 0 && <p className="text-sm text-zinc-500">This module has no custom fields.</p>}
+                {m.fields.length === 0 && <p className="text-sm text-zinc-500">{tr.projects.noCustomFields}</p>}
                 <div className="flex justify-end">
                   <SubmitButton size="sm" variant="secondary">
-                    Save {m.name} details
+                    {tr.projects.saveModuleDetails(m.name)}
                   </SubmitButton>
                 </div>
               </ActionForm>

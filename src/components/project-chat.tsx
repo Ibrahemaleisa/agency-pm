@@ -4,6 +4,7 @@ import { Lock, Users } from "lucide-react";
 import { sendChatMessage } from "@/server/project-actions";
 import { ActionForm, AutoRefresh, SubmitButton } from "./forms";
 import { Avatar, Badge, EmptyState, Textarea, cn } from "./ui";
+import { getT } from "@/lib/lang";
 
 export type ChatMessage = {
   id: string;
@@ -13,7 +14,7 @@ export type ChatMessage = {
   authorRole: string | null;
 };
 
-export function ProjectChat({
+export async function ProjectChat({
   projectId,
   channel,
   channels,
@@ -26,6 +27,7 @@ export function ProjectChat({
   messages: ChatMessage[];
   currentUserName: string;
 }) {
+  const { t, locale } = await getT();
   return (
     <div className="flex h-[calc(100dvh-22rem)] min-h-[440px] flex-col md:h-[calc(100dvh-18rem)] overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
       <AutoRefresh intervalMs={5000} />
@@ -41,20 +43,20 @@ export function ProjectChat({
               )}
             >
               {c === "internal" ? <Lock className="size-3.5" /> : <Users className="size-3.5" />}
-              {c === "internal" ? "Team" : "Client"}
-              <span className="hidden sm:inline">{c === "internal" ? " (internal)" : " conversation"}</span>
+              {c === "internal" ? t.chat.team : t.chat.client}
+              <span className="hidden sm:inline">{c === "internal" ? t.chat.teamSuffix : t.chat.clientSuffix}</span>
             </Link>
           ))}
         </div>
         <span className="hidden text-xs text-zinc-400 sm:block">
-          {channel === "internal" ? "Only agency staff can see this channel" : "Visible to the client"}
+          {channel === "internal" ? t.chat.internalHint : t.chat.clientHint}
         </span>
       </div>
 
       {/* flex-col-reverse keeps the view anchored to the newest message */}
       <div className="flex flex-1 flex-col-reverse overflow-y-auto bg-zinc-50/60 px-3 py-4 md:px-5">
         {messages.length === 0 ? (
-          <EmptyState>No messages yet. Start the conversation.</EmptyState>
+          <EmptyState>{t.chat.empty}</EmptyState>
         ) : (
           <ul className="space-y-3">
             {messages.map((m, i) => {
@@ -68,20 +70,20 @@ export function ProjectChat({
                   <div className={cn("flex max-w-[80%] flex-col", mine ? "items-end" : "items-start")}>
                     {!grouped && !mine && (
                       <div className="mb-1 flex items-center gap-1.5 px-1 text-xs">
-                        <span className="font-medium text-zinc-700">{m.authorName ?? "Deleted user"}</span>
-                        {m.authorRole === "client" && <Badge tone="amber">Client</Badge>}
+                        <span className="font-medium text-zinc-700">{m.authorName ?? t.common.deletedUser}</span>
+                        {m.authorRole === "client" && <Badge tone="amber">{t.chat.clientBadge}</Badge>}
                       </div>
                     )}
                     <div
                       className={cn(
                         "rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap shadow-sm",
-                        mine ? "rounded-br-md bg-indigo-600 text-white [&_span]:text-indigo-100" : "rounded-bl-md border border-zinc-200/80 bg-white text-zinc-800",
+                        mine ? "rounded-ee-md bg-indigo-600 text-white [&_span]:text-indigo-100" : "rounded-es-md border border-zinc-200/80 bg-white text-zinc-800",
                       )}
                     >
                       <Highlight text={m.body} />
                     </div>
                     <span className="mt-1 px-1 text-[11px] text-zinc-400">
-                      {format(m.createdAt, isToday(m.createdAt) ? "h:mm a" : "MMM d, h:mm a")}
+                      {format(m.createdAt, isToday(m.createdAt) ? "h:mm a" : "MMM d, h:mm a", { locale })}
                     </span>
                   </div>
                 </li>
@@ -100,9 +102,9 @@ export function ProjectChat({
             rows={1}
             className="rounded-2xl"
             required
-            placeholder={`Message ${channel === "internal" ? "the team" : "everyone incl. client"}… use @name to mention`}
+            placeholder={channel === "internal" ? t.chat.placeholderTeam : t.chat.placeholderClient}
           />
-          <SubmitButton pendingText="Sending…">Send</SubmitButton>
+          <SubmitButton pendingText={t.chat.sending}>{t.chat.send}</SubmitButton>
         </div>
       </ActionForm>
     </div>

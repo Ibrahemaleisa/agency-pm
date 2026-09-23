@@ -5,6 +5,8 @@ import "@fontsource/ibm-plex-sans-arabic/500.css";
 import "@fontsource/ibm-plex-sans-arabic/600.css";
 import "@fontsource/ibm-plex-sans-arabic/700.css";
 import { arabicFontClass } from "./fonts";
+import { getLang } from "@/lib/lang";
+import { dirOf } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,9 +18,10 @@ export const viewport: Viewport = {
   themeColor: "#0a0a0a",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const lang = await getLang();
   return (
-    <html lang="en" className={`${arabicFontClass} h-full antialiased`}>
+    <html lang={lang} dir={dirOf(lang)} className={`${arabicFontClass} h-full antialiased`}>
       <body className="min-h-full text-zinc-900">{children}</body>
     </html>
   );

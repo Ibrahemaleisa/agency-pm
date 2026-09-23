@@ -6,20 +6,18 @@ import { TaskTable } from "@/components/lists";
 import { FilterTabs, SearchBox } from "@/components/filters";
 import { Card, PageHeader } from "@/components/ui";
 import type { TaskStatus } from "@/db/schema";
+import { getT } from "@/lib/lang";
 
-export const metadata = { title: "Tasks" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t.tasks.title };
+}
 
-const VIEWS = [
-  { value: "mine", label: "My tasks" },
-  { value: "all", label: "All open" },
-  { value: "today", label: "Due today" },
-  { value: "overdue", label: "Overdue" },
-  { value: "blocked", label: "Waiting for client" },
-  { value: "unassigned", label: "Unassigned" },
-] as const;
+const VIEWS = ["mine", "all", "today", "overdue", "blocked", "unassigned"] as const;
 
 export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const user = await requirePermission("tasks.updateStatus");
+  const { t } = await getT();
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
 
@@ -44,25 +42,25 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   return (
     <>
       <PageHeader
-        title="Tasks"
+        title={t.tasks.title}
         description={
           assigneeName
-            ? `Open tasks assigned to ${assigneeName}`
-            : status
-              ? `Tasks with status: ${TASK_STATUSES.find((s) => s.value === status)?.label}`
-              : "Everything that needs to be done, and who's on it."
+            ? t.tasks.assignedTo(assigneeName)
+            : status && status in t.taskStatus
+              ? t.tasks.withStatus(t.taskStatus[status])
+              : t.tasks.subtitle
         }
       />
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <FilterTabs
           current={assignee || status ? "" : view}
-          options={VIEWS.filter((v) => v.value !== "unassigned" || can(user, "tasks.assign")).map((v) => ({ ...v }))}
+          options={VIEWS.filter((v) => v !== "unassigned" || can(user, "tasks.assign")).map((v) => ({ value: v, label: t.tasks.views[v] }))}
           hrefFor={(v) => `/tasks?view=${v}`}
         />
-        <SearchBox defaultValue={q} placeholder="Search tasks…" hidden={{ view, status, assignee }} />
+        <SearchBox defaultValue={q} placeholder={t.tasks.searchPlaceholder} hidden={{ view, status, assignee }} />
       </div>
       <Card padded={false}>
-        <TaskTable tasks={tasks} editableStatus showAssignee={view !== "mine"} empty="No tasks match this view." />
+        <TaskTable tasks={tasks} editableStatus showAssignee={view !== "mine"} empty={t.tasks.empty} />
       </Card>
     </>
   );

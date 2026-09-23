@@ -2,18 +2,23 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { clients, users } from "@/db/schema";
 import { requirePermission } from "@/lib/auth";
-import { ROLE_LABELS } from "@/lib/constants";
+import { getT } from "@/lib/lang";
 import { createUser, updateUser } from "@/server/admin-actions";
 import { listClientsForOrg } from "@/server/queries";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { Avatar, Badge, Card, Checkbox, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 
-export const metadata = { title: "Team & Users" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t.team.title };
+}
 
-const roleOptions = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }));
 
 export default async function TeamPage() {
   const admin = await requirePermission("users.manage");
+  const { t } = await getT();
+  const m = t.team;
+  const roleOptions = (["admin", "employee", "client"] as const).map((value) => ({ value, label: t.roles[value] }));
   const [people, clientOptions] = await Promise.all([
     db
       .select({
@@ -36,15 +41,15 @@ export default async function TeamPage() {
 
   return (
     <>
-      <PageHeader title="Team & Users" description="Manage staff and client portal accounts. Roles control what each person can see and do." />
+      <PageHeader title={m.title} description={m.subtitle} />
       <div className="grid gap-6 xl:grid-cols-3">
-        <Card title={`Users (${people.length})`} padded={false} className="xl:col-span-2">
+        <Card title={m.users(people.length)} padded={false} className="xl:col-span-2">
           <Table>
             <thead>
               <tr>
-                <Th>Name</Th>
-                <Th>Role</Th>
-                <Th>Status</Th>
+                <Th>{m.name}</Th>
+                <Th>{m.role}</Th>
+                <Th>{m.status}</Th>
                 <Th />
               </tr>
             </thead>
@@ -61,27 +66,27 @@ export default async function TeamPage() {
                     </div>
                   </Td>
                   <Td>
-                    <Badge tone={p.role === "admin" ? "violet" : p.role === "client" ? "amber" : "blue"}>{ROLE_LABELS[p.role]}</Badge>
+                    <Badge tone={p.role === "admin" ? "violet" : p.role === "client" ? "amber" : "blue"}>{t.roles[p.role]}</Badge>
                     <div className="mt-1 text-xs text-zinc-500">{p.role === "client" ? p.clientName : p.title}</div>
                   </Td>
-                  <Td>{p.active ? <Badge tone="green">Active</Badge> : <Badge>Deactivated</Badge>}</Td>
-                  <Td className="w-24 text-right">
+                  <Td>{p.active ? <Badge tone="green">{t.common.active}</Badge> : <Badge>{m.deactivated}</Badge>}</Td>
+                  <Td className="w-24 text-end">
                     <details className="group relative">
-                      <summary className="cursor-pointer list-none text-xs font-medium text-indigo-600">Edit</summary>
-                      <div className="absolute right-0 z-10 mt-2 w-80 rounded-xl border border-zinc-200/80 bg-white p-4 text-left shadow-lg">
-                        <ActionForm action={updateUser} className="space-y-3" successMessage="Saved.">
+                      <summary className="cursor-pointer list-none text-xs font-medium text-indigo-600">{m.edit}</summary>
+                      <div className="absolute end-0 z-10 mt-2 w-80 rounded-xl border border-zinc-200/80 bg-white p-4 text-start shadow-lg">
+                        <ActionForm action={updateUser} className="space-y-3" successMessage={t.common.saved}>
                           <input type="hidden" name="userId" value={p.id} />
-                          <Field label="Name"><Input name="name" defaultValue={p.name} required /></Field>
-                          <Field label="Title"><Input name="title" defaultValue={p.title ?? ""} /></Field>
-                          <Field label="Role"><Select name="role" defaultValue={p.role} options={roleOptions} /></Field>
-                          <Field label="Client (for client users)">
+                          <Field label={m.name}><Input name="name" defaultValue={p.name} required /></Field>
+                          <Field label={m.jobTitle}><Input name="title" defaultValue={p.title ?? ""} /></Field>
+                          <Field label={m.role}><Select name="role" defaultValue={p.role} options={roleOptions} /></Field>
+                          <Field label={m.clientForUsers}>
                             <Select name="clientId" defaultValue={p.clientId ?? ""} placeholder="—" options={clientSelect} />
                           </Field>
-                          <Field label="New password" hint="Leave blank to keep the current password.">
+                          <Field label={m.newPassword} hint={m.newPasswordHint}>
                             <Input name="password" type="password" minLength={8} autoComplete="new-password" />
                           </Field>
-                          <Checkbox name="active" defaultChecked={p.active} label="Active" />
-                          <div className="flex justify-end"><SubmitButton size="sm">Save</SubmitButton></div>
+                          <Checkbox name="active" defaultChecked={p.active} label={m.activeLabel} />
+                          <div className="flex justify-end"><SubmitButton size="sm">{t.common.save}</SubmitButton></div>
                         </ActionForm>
                       </div>
                     </details>
@@ -92,19 +97,19 @@ export default async function TeamPage() {
           </Table>
         </Card>
 
-        <Card title="Add user">
-          <ActionForm action={createUser} className="space-y-3" resetOnSuccess successMessage="User created.">
-            <Field label="Full name"><Input name="name" required /></Field>
-            <Field label="Email"><Input name="email" type="email" required /></Field>
-            <Field label="Title"><Input name="title" placeholder="e.g. Content Writer" /></Field>
-            <Field label="Role"><Select name="role" defaultValue="employee" options={roleOptions} /></Field>
-            <Field label="Client" hint="Required for client users — they only see this client's projects.">
+        <Card title={m.addUser}>
+          <ActionForm action={createUser} className="space-y-3" resetOnSuccess successMessage={m.userCreated}>
+            <Field label={m.fullName}><Input name="name" required /></Field>
+            <Field label={m.email}><Input name="email" type="email" required dir="ltr" /></Field>
+            <Field label={m.jobTitle}><Input name="title" placeholder={m.titlePlaceholder} /></Field>
+            <Field label={m.role}><Select name="role" defaultValue="employee" options={roleOptions} /></Field>
+            <Field label={m.client} hint={m.clientHint}>
               <Select name="clientId" placeholder="—" options={clientSelect} />
             </Field>
-            <Field label="Temporary password" hint="At least 8 characters. Share it securely.">
+            <Field label={m.tempPassword} hint={m.tempPasswordHint}>
               <Input name="password" type="password" required minLength={8} autoComplete="new-password" />
             </Field>
-            <div className="flex justify-end"><SubmitButton>Create user</SubmitButton></div>
+            <div className="flex justify-end"><SubmitButton>{m.createUser}</SubmitButton></div>
           </ActionForm>
         </Card>
       </div>

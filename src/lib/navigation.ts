@@ -1,22 +1,33 @@
 import type { NavItem } from "@/components/sidebar";
+import type { AppDict } from "./i18n-app";
 import { can, type Permission } from "./permissions";
 import type { Role } from "@/db/schema";
 
+type Entry = Omit<NavItem, "label" | "section"> & {
+  key: keyof AppDict["nav"];
+  section?: "sectionAgency" | "sectionSettings";
+  permission?: Permission;
+};
+
 /** Sidebar entries, each gated by a permission (or visible to everyone when omitted). */
-const NAV: (NavItem & { permission?: Permission })[] = [
-  { href: "/", label: "Dashboard", icon: "dashboard" },
-  { href: "/projects", label: "Projects", icon: "projects" },
-  { href: "/tasks", label: "Tasks", icon: "tasks", permission: "tasks.updateStatus" },
-  { href: "/approvals", label: "Approvals", icon: "approvals" },
-  { href: "/notifications", label: "Notifications", icon: "notifications" },
-  { href: "/clients", label: "Clients", icon: "clients", permission: "clients.view", section: "Agency" },
-  { href: "/leads", label: "Leads", icon: "leads", permission: "leads.manage", section: "Agency" },
-  { href: "/activity", label: "Activity Log", icon: "activity", permission: "activity.viewAll", section: "Agency" },
-  { href: "/team", label: "Team & Users", icon: "team", permission: "users.manage", section: "Settings" },
-  { href: "/templates", label: "Module Templates", icon: "templates", permission: "templates.manage", section: "Settings" },
+const NAV: Entry[] = [
+  { href: "/", key: "dashboard", icon: "dashboard" },
+  { href: "/projects", key: "projects", icon: "projects" },
+  { href: "/tasks", key: "tasks", icon: "tasks", permission: "tasks.updateStatus" },
+  { href: "/approvals", key: "approvals", icon: "approvals" },
+  { href: "/notifications", key: "notifications", icon: "notifications" },
+  { href: "/clients", key: "clients", icon: "clients", permission: "clients.view", section: "sectionAgency" },
+  { href: "/leads", key: "leads", icon: "leads", permission: "leads.manage", section: "sectionAgency" },
+  { href: "/activity", key: "activity", icon: "activity", permission: "activity.viewAll", section: "sectionAgency" },
+  { href: "/team", key: "team", icon: "team", permission: "users.manage", section: "sectionSettings" },
+  { href: "/templates", key: "templates", icon: "templates", permission: "templates.manage", section: "sectionSettings" },
 ];
 
-export function navFor(user: { role: Role }): NavItem[] {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  return NAV.filter((i) => !i.permission || can(user, i.permission)).map(({ permission, ...item }) => item);
+export function navFor(user: { role: Role }, t: AppDict): NavItem[] {
+  return NAV.filter((i) => !i.permission || can(user, i.permission)).map((i) => ({
+    href: i.href,
+    icon: i.icon,
+    label: t.nav[i.key] as string,
+    section: i.section ? (t.nav[i.section] as string) : undefined,
+  }));
 }

@@ -97,7 +97,7 @@ export function AutoSubmitSelect({
   return (
     <select
       {...props}
-      className={cn(inputClass, "py-1 pr-8", className)}
+      className={cn(inputClass, "py-1 pe-8", className)}
       onChange={(e) => e.currentTarget.form?.requestSubmit()}
     >
       {options.map((o) => (

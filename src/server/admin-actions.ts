@@ -21,6 +21,9 @@ import { assertCan } from "@/lib/permissions";
 import { logActivity } from "@/lib/events";
 import { bool, str, type ActionState } from "@/lib/action-state";
 import { TONES } from "@/lib/constants";
+import { getT } from "@/lib/lang";
+
+const msg = async () => (await getT()).t.actions;
 
 const refresh = () => revalidatePath("/", "layout");
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -56,7 +59,7 @@ export async function createClient(_prev: ActionState, fd: FormData): Promise<Ac
   const user = await requireUser();
   assertCan(user, "clients.manage");
   const values = clientValues(fd);
-  if (!values.name) return { error: "Client name is required." };
+  if (!values.name) return { error: (await msg()).clientNameRequired };
   const [client] = await db
     .insert(clients)
     .values({ ...values, name: values.name, orgId: user.orgId })
@@ -72,13 +75,13 @@ export async function updateClient(_prev: ActionState, fd: FormData): Promise<Ac
   assertCan(user, "clients.manage");
   const id = str(fd, "clientId") ?? "";
   const values = clientValues(fd);
-  if (!values.name) return { error: "Client name is required." };
+  if (!values.name) return { error: (await msg()).clientNameRequired };
   const [client] = await db
     .update(clients)
     .set({ ...values, name: values.name, active: bool(fd, "active") })
     .where(and(eq(clients.id, id), eq(clients.orgId, user.orgId)))
     .returning();
-  if (!client) return { error: "Client not found." };
+  if (!client) return { error: (await msg()).clientNotFound };
   await setClientTeam(user.orgId, client.id, fd.getAll("teamIds").map(String));
   await logActivity(user, { action: "client.updated", summary: `updated client ${client.name}` });
   refresh();
@@ -101,18 +104,18 @@ export async function createUser(_prev: ActionState, fd: FormData): Promise<Acti
   const password = str(fd, "password");
   const role = parseRole(str(fd, "role"));
   const clientId = role === "client" ? str(fd, "clientId") : null;
-  if (!name || !email || !password) return { error: "Name, email and password are required." };
-  if (!isEmail(email)) return { error: "Enter a valid email address." };
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (!name || !email || !password) return { error: (await msg()).userFieldsRequired };
+  if (!isEmail(email)) return { error: (await msg()).invalidEmail };
+  if (password.length < 8) return { error: (await msg()).passwordLength };
   if (role === "client") {
-    if (!clientId) return { error: "Client users must be linked to a client." };
+    if (!clientId) return { error: (await msg()).clientUserNeedsClient };
     const c = await db.query.clients.findFirst({
       where: and(eq(clients.id, clientId), eq(clients.orgId, admin.orgId)),
     });
-    if (!c) return { error: "Invalid client." };
+    if (!c) return { error: (await msg()).invalidClient };
   }
   const exists = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (exists) return { error: "A user with that email already exists." };
+  if (exists) return { error: (await msg()).emailExists };
 
   await db.insert(users).values({
     orgId: admin.orgId,
@@ -135,18 +138,18 @@ export async function updateUser(_prev: ActionState, fd: FormData): Promise<Acti
   const target = await db.query.users.findFirst({
     where: and(eq(users.id, id), eq(users.orgId, admin.orgId)),
   });
-  if (!target) return { error: "User not found." };
+  if (!target) return { error: (await msg()).userNotFound };
   const name = str(fd, "name");
-  if (!name) return { error: "Name is required." };
+  if (!name) return { error: (await msg()).nameRequired };
   const role = parseRole(str(fd, "role"));
   const active = bool(fd, "active");
   if (target.id === admin.id && (role !== "admin" || !active))
-    return { error: "You cannot remove your own admin access." };
+    return { error: (await msg()).ownAdmin };
   const clientId = role === "client" ? str(fd, "clientId") : null;
-  if (role === "client" && !clientId) return { error: "Client users must be linked to a client." };
+  if (role === "client" && !clientId) return { error: (await msg()).clientUserNeedsClient };
 
   const password = str(fd, "password");
-  if (password && password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (password && password.length < 8) return { error: (await msg()).passwordLength };
 
   await db
     .update(users)
@@ -207,8 +210,8 @@ export async function saveTemplate(_prev: ActionState, fd: FormData): Promise<Ac
   const user = await requireUser();
   assertCan(user, "templates.manage");
   const values = parseTemplateForm(fd);
-  if (!values.name) return { error: "Name is required." };
-  if (values.stages.length === 0) return { error: "Add at least one workflow stage." };
+  if (!values.name) return { error: (await msg()).nameRequired };
+  if (values.stages.length === 0) return { error: (await msg()).templateStagesRequired };
   const id = str(fd, "templateId");
   if (id) {
     await db

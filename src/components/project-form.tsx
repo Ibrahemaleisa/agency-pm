@@ -3,10 +3,11 @@ import { PROJECT_STATUSES } from "@/lib/constants";
 import type { ActionState } from "@/lib/action-state";
 import { ActionForm, SubmitButton } from "./forms";
 import { Checkbox, Field, Input, Select, Textarea } from "./ui";
+import { getT } from "@/lib/lang";
 
 type Option = { id: string; name: string; title?: string | null };
 
-export function ProjectForm({
+export async function ProjectForm({
   action,
   project,
   clients,
@@ -27,48 +28,50 @@ export function ProjectForm({
   defaultOwnerId?: string;
   submitLabel: string;
 }) {
+  const { t } = await getT();
+  const f = t.projectForm;
   return (
-    <ActionForm action={action} className="space-y-4" successMessage="Project saved.">
+    <ActionForm action={action} className="space-y-4" successMessage={f.saved}>
       {project && <input type="hidden" name="projectId" value={project.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Project name" className="sm:col-span-2">
-          <Input name="name" required defaultValue={project?.name} placeholder="e.g. Q4 Brand Refresh" />
+        <Field label={f.name} className="sm:col-span-2">
+          <Input name="name" required defaultValue={project?.name} placeholder={f.namePlaceholder} />
         </Field>
         {clients && (
-          <Field label="Client">
+          <Field label={f.client}>
             <Select
               name="clientId"
               required
               defaultValue={defaultClientId}
-              placeholder="Select a client…"
+              placeholder={f.selectClient}
               options={clients.map((c) => ({ value: c.id, label: c.name }))}
             />
           </Field>
         )}
-        <Field label="Status">
-          <Select name="status" defaultValue={project?.status ?? "planning"} options={PROJECT_STATUSES} />
+        <Field label={f.status}>
+          <Select name="status" defaultValue={project?.status ?? "planning"} options={PROJECT_STATUSES.map((x) => ({ value: x.value, label: t.projectStatus[x.value] }))} />
         </Field>
-        <Field label="Project owner">
+        <Field label={f.owner}>
           <Select
             name="ownerId"
             defaultValue={project?.ownerId ?? defaultOwnerId}
             options={people.map((p) => ({ value: p.id, label: p.name }))}
           />
         </Field>
-        <Field label="Start date">
+        <Field label={f.startDate}>
           <Input type="date" name="startDate" defaultValue={project?.startDate ?? undefined} />
         </Field>
-        <Field label="End date">
+        <Field label={f.endDate}>
           <Input type="date" name="endDate" defaultValue={project?.endDate ?? undefined} />
         </Field>
-        <Field label="Description" className="sm:col-span-2">
+        <Field label={f.description} className="sm:col-span-2">
           <Textarea name="description" defaultValue={project?.description ?? undefined} />
         </Field>
       </div>
 
       {templates && (
         <fieldset>
-          <legend className="mb-2 text-xs font-medium text-zinc-700">Modules (what the client purchased)</legend>
+          <legend className="mb-2 text-xs font-medium text-zinc-700">{f.modules}</legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {templates.map((t) => (
               <label
@@ -87,7 +90,7 @@ export function ProjectForm({
       )}
 
       <fieldset>
-        <legend className="mb-2 text-xs font-medium text-zinc-700">Team members with access</legend>
+        <legend className="mb-2 text-xs font-medium text-zinc-700">{f.members}</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {people.map((p) => (
             <Checkbox

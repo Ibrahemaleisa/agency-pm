@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { format } from "date-fns";
+import type { Metadata } from "next";
 import {
   AlarmClock,
   AlertTriangle,
@@ -14,6 +14,9 @@ import {
 import { requireUser, type SessionUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { TASK_STATUSES } from "@/lib/constants";
+import { getT } from "@/lib/lang";
+import type { AppDict } from "@/lib/i18n-app";
+import type { Lang } from "@/lib/i18n";
 import {
   listActivity,
   listProjects,
@@ -33,18 +36,26 @@ import {
   toneDot,
 } from "@/components/ui";
 
-export const metadata = { title: "Dashboard" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: t.nav.dashboard };
+}
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  if (can(user, "dashboard.admin")) return <AdminDashboard user={user} />;
-  if (can(user, "dashboard.client")) return <ClientDashboard user={user} />;
-  return <EmployeeDashboard user={user} />;
+  const { t, lang } = await getT();
+  const props = { user, t, lang };
+  if (can(user, "dashboard.admin")) return <AdminDashboard {...props} />;
+  if (can(user, "dashboard.client")) return <ClientDashboard {...props} />;
+  return <EmployeeDashboard {...props} />;
 }
+
+type Props = { user: SessionUser; t: AppDict; lang: Lang };
 
 /* ------------------------------------------------------------------ */
 
-async function AdminDashboard({ user }: { user: SessionUser }) {
+async function AdminDashboard({ user, t, lang }: Props) {
+  const d = t.dashboard;
   const [openProjects, overdueAll, approvalsAll, unassignedTasks, byStatus, workload, activity] =
     await Promise.all([
       listProjects(user, { status: "open" }),
@@ -58,43 +69,42 @@ async function AdminDashboard({ user }: { user: SessionUser }) {
   const active = openProjects.filter((p) => p.status === "active");
   const overdue = overdueAll.slice(0, 8);
   const approvals = approvalsAll.slice(0, 8);
-  const unassigned = unassignedTasks.length;
 
   return (
     <>
-      <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description={`${today()} · Agency overview`} />
+      <PageHeader title={d.greeting(greetingPart(), firstName(user))} description={`${today(lang)} · ${d.agencyOverview}`} />
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
-        <Stat label="Active projects" value={active.length} href="/projects?status=active" tone="slate" icon={<FolderKanban className="size-4" />} />
-        <Stat label="Overdue tasks" value={overdueAll.length} tone={overdueAll.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
-        <Stat label="Pending approvals" value={approvalsAll.length} tone={approvalsAll.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
-        <Stat label="In review" value={byStatus.review ?? 0} tone="violet" href="/tasks?status=review" icon={<Eye className="size-4" />} />
-        <Stat label="Unassigned" value={unassigned} href="/tasks?view=unassigned" icon={<UserX className="size-4" />} hint="Open tasks with no owner" />
+        <Stat label={d.activeProjects} value={active.length} href="/projects?status=active" tone="slate" icon={<FolderKanban className="size-4" />} />
+        <Stat label={d.overdueTasks} value={overdueAll.length} tone={overdueAll.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
+        <Stat label={d.pendingApprovals} value={approvalsAll.length} tone={approvalsAll.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
+        <Stat label={d.inReview} value={byStatus.review ?? 0} tone="violet" href="/tasks?status=review" icon={<Eye className="size-4" />} />
+        <Stat label={d.unassigned} value={unassignedTasks.length} href="/tasks?view=unassigned" icon={<UserX className="size-4" />} hint={d.unassignedHint} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card title="Tasks by status" className="lg:col-span-1">
-          <StatusBars counts={byStatus} />
+        <Card title={d.tasksByStatus} className="lg:col-span-1">
+          <StatusBars counts={byStatus} t={t} />
         </Card>
-        <Card title="Team workload" className="lg:col-span-2" padded={false}>
-          <WorkloadBars rows={workload} />
+        <Card title={d.teamWorkload} className="lg:col-span-2" padded={false}>
+          <WorkloadBars rows={workload} t={t} />
         </Card>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
-          <Card title={<CardTitle icon={<AlertTriangle className="size-4 text-red-500" />}>Overdue tasks</CardTitle>} actions={<SeeAll href="/tasks?view=overdue" />} padded={false}>
-            <TaskTable tasks={overdue} showProject={false} empty="Nothing overdue. Nice work!" />
+          <Card title={<CardTitle icon={<AlertTriangle className="size-4 text-red-500" />}>{d.overdueTasks}</CardTitle>} actions={<SeeAll href="/tasks?view=overdue" t={t} />} padded={false}>
+            <TaskTable tasks={overdue} showProject={false} empty={d.nothingOverdue} />
           </Card>
-          <Card title={<CardTitle icon={<BadgeCheck className="size-4 text-amber-500" />}>Waiting on client approval</CardTitle>} actions={<SeeAll href="/approvals" />} padded={false}>
-            <TaskTable tasks={approvals} showProject={false} empty="No approvals pending." />
+          <Card title={<CardTitle icon={<BadgeCheck className="size-4 text-amber-500" />}>{d.waitingOnClient}</CardTitle>} actions={<SeeAll href="/approvals" t={t} />} padded={false}>
+            <TaskTable tasks={approvals} showProject={false} empty={d.noApprovals} />
           </Card>
         </div>
-        <Card title="Recent activity" actions={<SeeAll href="/activity" />} padded={false}>
+        <Card title={d.recentActivity} actions={<SeeAll href="/activity" t={t} />} padded={false}>
           <ActivityFeed items={activity} />
         </Card>
       </div>
 
-      <SectionHeading title="Open projects" action={<SeeAll href="/projects" />} />
+      <SectionHeading title={d.openProjects} action={<SeeAll href="/projects" t={t} />} />
       <ProjectGrid projects={openProjects.slice(0, 6)} />
     </>
   );
@@ -102,7 +112,8 @@ async function AdminDashboard({ user }: { user: SessionUser }) {
 
 /* ------------------------------------------------------------------ */
 
-async function EmployeeDashboard({ user }: { user: SessionUser }) {
+async function EmployeeDashboard({ user, t, lang }: Props) {
+  const d = t.dashboard;
   const [mine, dueToday, overdue, review, activity, myProjects] = await Promise.all([
     listTasks(user, { assigneeId: user.id, status: "open" }),
     listTasks(user, { assigneeId: user.id, dueToday: true }),
@@ -113,49 +124,49 @@ async function EmployeeDashboard({ user }: { user: SessionUser }) {
   ]);
   // "Waiting for me": items in review I created/own + my tasks where the client asked for changes.
   const waitingForMe = [
-    ...review.filter((t) => t.assigneeId !== user.id),
-    ...mine.filter((t) => t.approvalStatus === "rejected"),
+    ...review.filter((x) => x.assigneeId !== user.id),
+    ...mine.filter((x) => x.approvalStatus === "rejected"),
   ];
-  const clientWaiting = mine.filter((t) => t.status === "waiting_client");
+  const clientWaiting = mine.filter((x) => x.status === "waiting_client");
 
   return (
     <>
-      <PageHeader title={`Good ${greeting()}, ${user.name.split(" ")[0]}`} description={`${today()} · Here's what needs your attention.`} />
+      <PageHeader title={d.greeting(greetingPart(), firstName(user))} description={`${today(lang)} · ${d.needsAttention}`} />
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-        <Stat label="My open tasks" value={mine.length} href="/tasks" tone="slate" icon={<ListTodo className="size-4" />} />
-        <Stat label="Due today" value={dueToday.length} tone={dueToday.length ? "amber" : "slate"} href="/tasks?view=today" icon={<AlarmClock className="size-4" />} />
-        <Stat label="Overdue" value={overdue.length} tone={overdue.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
-        <Stat label="Waiting for me" value={waitingForMe.length} tone="violet" hint="Reviews + change requests" icon={<Inbox className="size-4" />} />
+        <Stat label={d.myOpenTasks} value={mine.length} href="/tasks" tone="slate" icon={<ListTodo className="size-4" />} />
+        <Stat label={d.dueToday} value={dueToday.length} tone={dueToday.length ? "amber" : "slate"} href="/tasks?view=today" icon={<AlarmClock className="size-4" />} />
+        <Stat label={d.overdue} value={overdue.length} tone={overdue.length ? "red" : "slate"} href="/tasks?view=overdue" icon={<AlertTriangle className="size-4" />} />
+        <Stat label={d.waitingForMe} value={waitingForMe.length} tone="violet" hint={d.waitingHint} icon={<Inbox className="size-4" />} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           {(overdue.length > 0 || dueToday.length > 0) && (
-            <Card title="Due today & overdue" padded={false}>
+            <Card title={d.dueTodayOverdue} padded={false}>
               <TaskTable tasks={[...overdue, ...dueToday]} editableStatus showAssignee={false} />
             </Card>
           )}
-          <Card title="Waiting for me" padded={false}>
-            <TaskTable tasks={waitingForMe} editableStatus empty="Nothing waiting on you." />
+          <Card title={d.waitingForMe} padded={false}>
+            <TaskTable tasks={waitingForMe} editableStatus empty={d.nothingWaiting} />
           </Card>
-          <Card title="My tasks" actions={<SeeAll href="/tasks" />} padded={false}>
+          <Card title={d.myTasks} actions={<SeeAll href="/tasks" t={t} />} padded={false}>
             <TaskTable
-              tasks={mine.filter((t) => t.status !== "waiting_client")}
+              tasks={mine.filter((x) => x.status !== "waiting_client")}
               editableStatus
               showAssignee={false}
-              empty="You have no open tasks."
+              empty={d.noOpenTasks}
             />
           </Card>
           {clientWaiting.length > 0 && (
-            <Card title="Blocked on client" padded={false}>
+            <Card title={d.blockedOnClient} padded={false}>
               <TaskTable tasks={clientWaiting} showAssignee={false} />
             </Card>
           )}
         </div>
         <div className="min-w-0 space-y-6">
-          <Card title="My projects" padded={false}>
+          <Card title={d.myProjects} padded={false}>
             {myProjects.length === 0 ? (
-              <EmptyState>You&apos;re not on any active projects.</EmptyState>
+              <EmptyState>{d.notOnProjects}</EmptyState>
             ) : (
               <ul className="divide-y divide-zinc-100">
                 {myProjects.map((p) => (
@@ -170,7 +181,7 @@ async function EmployeeDashboard({ user }: { user: SessionUser }) {
               </ul>
             )}
           </Card>
-          <Card title="Recent activity" padded={false}>
+          <Card title={d.recentActivity} padded={false}>
             <ActivityFeed items={activity} />
           </Card>
         </div>
@@ -181,7 +192,8 @@ async function EmployeeDashboard({ user }: { user: SessionUser }) {
 
 /* ------------------------------------------------------------------ */
 
-async function ClientDashboard({ user }: { user: SessionUser }) {
+async function ClientDashboard({ user, t, lang }: Props) {
+  const d = t.dashboard;
   const [myProjects, approvals, activity] = await Promise.all([
     listProjects(user),
     listTasks(user, { approvalPending: true }),
@@ -191,7 +203,7 @@ async function ClientDashboard({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <PageHeader title={`Welcome, ${user.name.split(" ")[0]}`} description={`${today()} · Your projects at a glance.`} />
+      <PageHeader title={d.welcome(firstName(user))} description={`${today(lang)} · ${d.atAGlance}`} />
 
       {approvals.length > 0 && (
         <Link
@@ -202,32 +214,30 @@ async function ClientDashboard({ user }: { user: SessionUser }) {
             <BadgeCheck className="size-6" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block font-semibold">
-              {approvals.length} item{approvals.length > 1 ? "s" : ""} waiting for your approval
-            </span>
-            <span className="block text-sm text-zinc-400">Your feedback keeps the project moving.</span>
+            <span className="block font-semibold">{d.itemsWaiting(approvals.length)}</span>
+            <span className="block text-sm text-zinc-400">{d.feedbackMoves}</span>
           </span>
-          <span className="hidden rounded-lg bg-sand-200 px-3 py-2 text-sm font-semibold text-ink sm:block">Review now</span>
+          <span className="hidden rounded-lg bg-sand-200 px-3 py-2 text-sm font-semibold text-ink sm:block">{d.reviewNow}</span>
         </Link>
       )}
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
-        <Stat label="Active projects" value={upcoming.length} tone="slate" icon={<FolderKanban className="size-4" />} />
-        <Stat label="Pending approvals" value={approvals.length} tone={approvals.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
+        <Stat label={d.activeProjects} value={upcoming.length} tone="slate" icon={<FolderKanban className="size-4" />} />
+        <Stat label={d.pendingApprovals} value={approvals.length} tone={approvals.length ? "amber" : "slate"} href="/approvals" icon={<BadgeCheck className="size-4" />} />
         <Stat
-          label="Overall progress"
+          label={d.overallProgress}
           tone="slate"
           icon={<Percent className="size-4" />}
           value={`${myProjects.length ? Math.round(myProjects.reduce((s, p) => s + p.progress, 0) / myProjects.length) : 0}%`}
         />
       </div>
 
-      <SectionHeading title="Your projects" />
+      <SectionHeading title={d.yourProjects} />
       <ProjectGrid projects={myProjects} showClient={false} />
 
-      <SectionHeading title="Recent updates" />
+      <SectionHeading title={d.recentUpdates} />
       <Card padded={false}>
-        <ActivityFeed items={activity} empty="No updates yet." />
+        <ActivityFeed items={activity} empty={d.noUpdates} />
       </Card>
     </>
   );
@@ -235,39 +245,40 @@ async function ClientDashboard({ user }: { user: SessionUser }) {
 
 /* ------------------------------------------------------------------ */
 
-function StatusBars({ counts }: { counts: Record<string, number | undefined> }) {
+function StatusBars({ counts, t }: { counts: Record<string, number | undefined>; t: AppDict }) {
   const total = TASK_STATUSES.reduce((s, x) => s + (counts[x.value] ?? 0), 0);
   const max = Math.max(1, ...TASK_STATUSES.map((s) => counts[s.value] ?? 0));
   return (
     <div className="space-y-3">
       {TASK_STATUSES.map((s) => {
         const n = counts[s.value] ?? 0;
+        const label = t.taskStatus[s.value];
         return (
           <Link
             key={s.value}
             href={`/tasks?status=${s.value}`}
             className="group block"
-            title={`${s.label}: ${n} task${n === 1 ? "" : "s"} (${total ? Math.round((n / total) * 100) : 0}%)`}
+            title={`${label}: ${n} (${total ? Math.round((n / total) * 100) : 0}%)`}
           >
             <div className="mb-1 flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5 text-zinc-600 group-hover:text-zinc-900">
                 <span className={cn("size-2 rounded-full", toneDot[s.tone])} />
-                {s.label}
+                {label}
               </span>
               <span className="font-medium text-zinc-900 tabular-nums">{n}</span>
             </div>
-            <div className="h-2 rounded-r bg-zinc-100">
-              <div className={cn("h-2 rounded-r", toneDot[s.tone])} style={{ width: `${(n / max) * 100}%` }} />
+            <div className="h-2 rounded-e bg-zinc-100">
+              <div className={cn("h-2 rounded-e", toneDot[s.tone])} style={{ width: `${(n / max) * 100}%` }} />
             </div>
           </Link>
         );
       })}
-      <div className="border-t border-zinc-100 pt-2 text-xs text-zinc-500">{total} tasks across open projects</div>
+      <div className="border-t border-zinc-100 pt-2 text-xs text-zinc-500">{t.dashboard.tasksAcross(total)}</div>
     </div>
   );
 }
 
-function WorkloadBars({ rows }: { rows: Awaited<ReturnType<typeof teamWorkload>> }) {
+function WorkloadBars({ rows, t }: { rows: Awaited<ReturnType<typeof teamWorkload>>; t: AppDict }) {
   const max = Math.max(1, ...rows.map((r) => r.open));
   return (
     <ul className="divide-y divide-zinc-100">
@@ -280,14 +291,14 @@ function WorkloadBars({ rows }: { rows: Awaited<ReturnType<typeof teamWorkload>>
             </Link>
             <div className="truncate text-xs text-zinc-400">{r.title}</div>
           </div>
-          <div className="flex-1" title={`${r.name}: ${r.open} open, ${r.overdue} overdue, ${r.inReview} in review`}>
-            <div className="h-2 rounded-r bg-zinc-100">
-              <div className="h-2 rounded-r bg-indigo-500" style={{ width: `${(r.open / max) * 100}%` }} />
+          <div className="flex-1" title={t.dashboard.workloadTitle(r.name, r.open, r.overdue, r.inReview)}>
+            <div className="h-2 rounded-e bg-zinc-100">
+              <div className="h-2 rounded-e bg-indigo-500" style={{ width: `${(r.open / max) * 100}%` }} />
             </div>
           </div>
-          <div className="w-28 shrink-0 text-right text-xs tabular-nums">
-            <span className="font-medium text-zinc-900">{r.open} open</span>
-            {r.overdue > 0 && <span className="ml-1.5 font-medium text-red-600">{r.overdue} late</span>}
+          <div className="w-28 shrink-0 text-end text-xs tabular-nums">
+            <span className="font-medium text-zinc-900">{t.dashboard.openCount(r.open)}</span>
+            {r.overdue > 0 && <span className="ms-1.5 font-medium text-red-600">{t.dashboard.lateCount(r.overdue)}</span>}
           </div>
         </li>
       ))}
@@ -313,19 +324,31 @@ function CardTitle({ icon, children }: { icon: React.ReactNode; children: React.
   );
 }
 
-function today() {
-  return format(new Date(), "EEEE, MMMM d");
-}
-
-function SeeAll({ href }: { href: string }) {
+function SeeAll({ href, t }: { href: string; t: AppDict }) {
   return (
     <Link href={href} className="text-xs font-medium text-indigo-600 hover:text-indigo-500">
-      View all
+      {t.common.viewAll}
     </Link>
   );
 }
 
-function greeting() {
-  const h = new Date().getHours();
+const TIME_ZONE = "Asia/Riyadh";
+
+function firstName(user: SessionUser) {
+  return user.name.split(" ")[0];
+}
+
+/** Date line in the agency's time zone (the server runs on UTC). */
+function today(lang: Lang) {
+  return new Intl.DateTimeFormat(lang === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: TIME_ZONE,
+  }).format(new Date());
+}
+
+function greetingPart(): "morning" | "afternoon" | "evening" {
+  const h = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: TIME_ZONE }).format(new Date()));
   return h < 12 ? "morning" : h < 18 ? "afternoon" : "evening";
 }

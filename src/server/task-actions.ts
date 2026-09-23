@@ -23,6 +23,9 @@ import { getProjectAudience, logActivity, notify, resolveMentions } from "@/lib/
 import { bool, str, type ActionState } from "@/lib/action-state";
 import { taskStatusLabel } from "@/lib/constants";
 import { MAX_UPLOAD_BYTES, removeFile, saveFile } from "@/lib/uploads";
+import { getT } from "@/lib/lang";
+
+const msg = async () => (await getT()).t.actions;
 
 const refresh = () => revalidatePath("/", "layout");
 const taskLink = (id: string) => `/tasks/${id}`;
@@ -52,7 +55,7 @@ export async function createTask(_prev: ActionState, fd: FormData): Promise<Acti
   assertCan(user, "tasks.create");
   const project = await getAccessibleProject(user, str(fd, "projectId") ?? "");
   const title = str(fd, "title");
-  if (!title) return { error: "Title is required." };
+  if (!title) return { error: (await msg()).titleRequired };
 
   // Employees without assign permission can only create tasks for themselves.
   let assigneeId = str(fd, "assigneeId");
@@ -67,7 +70,7 @@ export async function createTask(_prev: ActionState, fd: FormData): Promise<Acti
     const mod = await db.query.projectModules.findFirst({
       where: and(eq(projectModules.id, moduleId), eq(projectModules.projectId, project.id)),
     });
-    if (!mod) return { error: "Invalid module." };
+    if (!mod) return { error: (await msg()).invalidModule };
     stage = mod.stages.some((s) => s.name === rawStage) ? rawStage : null;
   }
 
@@ -112,7 +115,7 @@ export async function updateTask(_prev: ActionState, fd: FormData): Promise<Acti
   assertCan(user, "tasks.edit");
   const { task } = await getAccessibleTask(user, str(fd, "taskId") ?? "");
   const title = str(fd, "title");
-  if (!title) return { error: "Title is required." };
+  if (!title) return { error: (await msg()).titleRequired };
 
   const changes: Partial<typeof tasks.$inferInsert> = {
     title,
@@ -248,11 +251,11 @@ export async function decideApproval(_prev: ActionState, fd: FormData): Promise<
   const user = await requireUser();
   assertCan(user, "approvals.decide");
   const { task, project } = await getAccessibleTask(user, str(fd, "taskId") ?? "");
-  if (task.approvalStatus !== "pending") return { error: "This item is not awaiting approval." };
+  if (task.approvalStatus !== "pending") return { error: (await msg()).notAwaiting };
   const decision = str(fd, "decision");
   const feedback = str(fd, "feedback");
-  if (decision !== "approve" && decision !== "reject") return { error: "Invalid decision." };
-  if (decision === "reject" && !feedback) return { error: "Please describe the changes you need." };
+  if (decision !== "approve" && decision !== "reject") return { error: (await msg()).invalidDecision };
+  if (decision === "reject" && !feedback) return { error: (await msg()).describeChanges };
 
   const approved = decision === "approve";
   await db
@@ -299,7 +302,7 @@ export async function addComment(_prev: ActionState, fd: FormData): Promise<Acti
   const user = await requireUser();
   const { task, project } = await getAccessibleTask(user, str(fd, "taskId") ?? "");
   const body = str(fd, "body");
-  if (!body) return { error: "Comment cannot be empty." };
+  if (!body) return { error: (await msg()).commentEmpty };
 
   // Clients can only post client-visible comments; staff choose, defaulting to internal.
   const internal = user.role === "client" ? false : !task.clientVisible || str(fd, "visibility") !== "client";
@@ -343,9 +346,9 @@ export async function uploadAttachment(_prev: ActionState, fd: FormData): Promis
   assertCan(user, "files.upload");
   const { task } = await getAccessibleTask(user, str(fd, "taskId") ?? "");
   const file = fd.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose a file to upload." };
+  if (!(file instanceof File) || file.size === 0) return { error: (await msg()).chooseFile };
   if (file.size > MAX_UPLOAD_BYTES)
-    return { error: `Files must be ${MAX_UPLOAD_BYTES / 1024 / 1024} MB or smaller.` };
+    return { error: (await msg()).fileTooLarge(MAX_UPLOAD_BYTES / 1024 / 1024) };
 
   const safeName = file.name.replace(/[^\w.\-]+/g, "_").slice(-100);
   const storageKey = `${user.orgId}/${randomUUID()}-${safeName}`;

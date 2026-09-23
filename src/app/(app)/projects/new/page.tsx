@@ -6,11 +6,16 @@ import { createProject } from "@/server/project-actions";
 import { listClientsForOrg, listInternalUsers } from "@/server/queries";
 import { ProjectForm } from "@/components/project-form";
 import { Card, PageHeader } from "@/components/ui";
+import { getT } from "@/lib/lang";
 
-export const metadata = { title: "New project" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t.projects.newProject };
+}
 
 export default async function NewProjectPage({ searchParams }: PageProps<"/projects/new">) {
   const user = await requirePermission("projects.manage");
+  const { t } = await getT();
   const sp = await searchParams;
   const [clients, people, templates] = await Promise.all([
     listClientsForOrg(user.orgId),
@@ -20,9 +25,9 @@ export default async function NewProjectPage({ searchParams }: PageProps<"/proje
   return (
     <>
       <PageHeader
-        title="New project"
-        breadcrumb={[{ href: "/projects", label: "Projects" }]}
-        description="Pick the client and the modules they purchased. Each module creates its workflow tasks automatically."
+        title={t.projects.newProject}
+        breadcrumb={[{ href: "/projects", label: t.projects.title }]}
+        description={t.projects.newProjectHint}
       />
       <Card className="max-w-3xl">
         <ProjectForm
@@ -33,7 +38,7 @@ export default async function NewProjectPage({ searchParams }: PageProps<"/proje
           defaultOwnerId={user.id}
           templates={templates}
           defaultClientId={typeof sp.clientId === "string" ? sp.clientId : undefined}
-          submitLabel="Create project"
+          submitLabel={t.projectForm.create}
         />
       </Card>
     </>

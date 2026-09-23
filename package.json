@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/fonts.mjs decrypt && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -12,7 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "setup": "npm run db:migrate && npm run db:seed",
-    "vercel-build": "drizzle-kit migrate && tsx src/db/seed.ts --if-empty && next build"
+    "vercel-build": "node scripts/fonts.mjs decrypt && drizzle-kit migrate && tsx src/db/seed.ts --if-empty && next build"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
