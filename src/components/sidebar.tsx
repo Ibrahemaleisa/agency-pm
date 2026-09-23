@@ -14,10 +14,12 @@ import {
   LayoutTemplate,
   LogOut,
   Menu,
+  Sparkles,
   Users,
   X,
 } from "lucide-react";
 import { cn } from "./ui";
+import { FadaMark } from "./site/brand";
 import { logoutAction } from "@/server/auth-actions";
 
 const ICONS = {
@@ -30,6 +32,7 @@ const ICONS = {
   notifications: Bell,
   team: Users,
   templates: LayoutTemplate,
+  leads: Sparkles,
 };
 
 export type NavItem = {
@@ -129,7 +132,7 @@ export function Sidebar({
       {/* ---------------- Mobile top bar ---------------- */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-200/80 bg-white/85 px-4 backdrop-blur-md md:hidden">
         <div className="flex items-center gap-2">
-          <Logo orgName={orgName} />
+          <Logo orgName={orgName} uid="fm-mobile" />
           <span className="text-[15px] font-semibold">{orgName}</span>
         </div>
         <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-xs font-semibold text-white">
@@ -237,21 +240,17 @@ export function Sidebar({
   );
 }
 
-function Logo({ orgName }: { orgName: string }) {
-  return (
-    <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-sm shadow-indigo-900/30">
-      {orgName[0]}
-    </span>
-  );
+function Logo({ orgName, uid }: { orgName: string; uid: string }) {
+  return <FadaMark className="size-8" uid={uid} label={orgName} />;
 }
 
 function Brand({ orgName }: { orgName: string }) {
   return (
     <div className="flex h-16 items-center gap-3 px-5">
-      <Logo orgName={orgName} />
+      <Logo orgName={orgName} uid="fm-desktop" />
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold text-white">{orgName}</div>
-        <div className="text-[11px] text-zinc-500">AgencyOS</div>
+        <div className="text-[11px] text-zinc-500">Workspace</div>
       </div>
     </div>
   );

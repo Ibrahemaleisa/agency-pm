@@ -1,17 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Cheap gate: bounce requests without a session cookie to /login. Full validation happens server-side. */
+/**
+ * Cheap gate based on the session cookie (full validation happens server-side):
+ * - "/" shows the public landing page to visitors and the dashboard to signed-in users;
+ * - every other app route bounces visitors to /login.
+ */
 export function proxy(request: NextRequest) {
   const hasSession = request.cookies.has("apm_session");
-  if (!hasSession) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = "";
-    return NextResponse.redirect(url);
+  if (hasSession) return NextResponse.next();
+
+  const url = request.nextUrl.clone();
+  if (url.pathname === "/") {
+    url.pathname = "/welcome";
+    return NextResponse.rewrite(url);
   }
-  return NextResponse.next();
+  url.pathname = "/login";
+  url.search = "";
+  return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: ["/((?!login|_next/static|_next/image|favicon.ico).*)"],
+  // Public: sign-in, landing, language switch, static assets.
+  matcher: ["/((?!login|welcome|lang|_next/static|_next/image|favicon.ico).*)"],
 };

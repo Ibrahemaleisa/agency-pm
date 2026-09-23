@@ -303,6 +303,27 @@ export const attachments = pgTable(
   (t) => [index("attachments_task_idx").on(t.taskId)],
 );
 
+/** Project requests submitted from the public landing page. */
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    company: text("company"),
+    email: text("email"),
+    phone: text("phone"),
+    service: text("service"),
+    message: text("message"),
+    lang: text("lang").notNull().default("ar"),
+    status: text("status").notNull().default("new"), // new | contacted | won | lost
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("leads_org_idx").on(t.orgId, t.createdAt)],
+);
+
 /** File contents, used for uploads when no external file store is configured. */
 export const fileBlobs = pgTable("file_blobs", {
   key: text("key").primaryKey(),

@@ -10,6 +10,7 @@ const NAV: (NavItem & { permission?: Permission })[] = [
   { href: "/approvals", label: "Approvals", icon: "approvals" },
   { href: "/notifications", label: "Notifications", icon: "notifications" },
   { href: "/clients", label: "Clients", icon: "clients", permission: "clients.view", section: "Agency" },
+  { href: "/leads", label: "Leads", icon: "leads", permission: "leads.manage", section: "Agency" },
   { href: "/activity", label: "Activity Log", icon: "activity", permission: "activity.viewAll", section: "Agency" },
   { href: "/team", label: "Team & Users", icon: "team", permission: "users.manage", section: "Settings" },
   { href: "/templates", label: "Module Templates", icon: "templates", permission: "templates.manage", section: "Settings" },

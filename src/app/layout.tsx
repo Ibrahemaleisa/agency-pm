@@ -4,12 +4,12 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "AgencyOS", template: "%s · AgencyOS" },
-  description: "Project management for agencies",
+  title: { default: "Fada | فضاء", template: "%s · Fada" },
+  description: "Fada — creative content & marketing agency",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#18181b",
+  themeColor: "#05050a",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

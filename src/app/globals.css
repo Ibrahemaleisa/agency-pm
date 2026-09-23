@@ -19,3 +19,47 @@ body {
 /* Hide scrollbars on horizontal pill rows while keeping them scrollable */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* ------------------------------------------------------------------ */
+/* Public site (landing + sign-in)                                     */
+/* ------------------------------------------------------------------ */
+
+.font-display { font-family: "Alexandria Variable", var(--font-geist-sans), system-ui, sans-serif; }
+.font-arabic { font-family: "IBM Plex Sans Arabic", var(--font-geist-sans), system-ui, sans-serif; }
+
+/* Layered star field made of tiny radial gradients */
+.starfield {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgb(255 255 255 / 0.9), transparent),
+    radial-gradient(1px 1px at 120px 80px, rgb(255 255 255 / 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 200px 160px, rgb(199 210 254 / 0.9), transparent),
+    radial-gradient(1px 1px at 300px 40px, rgb(255 255 255 / 0.7), transparent),
+    radial-gradient(1px 1px at 380px 210px, rgb(255 255 255 / 0.5), transparent),
+    radial-gradient(2px 2px at 60px 250px, rgb(196 181 253 / 0.8), transparent),
+    radial-gradient(1px 1px at 250px 290px, rgb(255 255 255 / 0.6), transparent);
+  background-size: 420px 320px;
+}
+.starfield-slow { animation: twinkle 6s ease-in-out infinite alternate; }
+
+@keyframes twinkle { from { opacity: 0.55; } to { opacity: 1; } }
+@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes meteor {
+  0% { transform: translate(0, 0) rotate(-35deg); opacity: 0; }
+  10% { opacity: 1; }
+  60% { opacity: 0; }
+  100% { transform: translate(-420px, 290px) rotate(-35deg); opacity: 0; }
+}
+.animate-orbit { animation: orbit 40s linear infinite; }
+.animate-orbit-fast { animation: orbit 18s linear infinite; }
+.animate-float { animation: float 7s ease-in-out infinite; }
+.animate-meteor { animation: meteor 5s ease-in infinite; }
+
+/* Scroll reveal (toggled by <Reveal>) */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.reveal[data-visible="true"] { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .starfield-slow, .animate-orbit, .animate-orbit-fast, .animate-float, .animate-meteor { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}

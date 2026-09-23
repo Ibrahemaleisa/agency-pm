@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { formatDistanceToNow } from "date-fns";
-import { AtSign, BadgeCheck, Bell, MessageSquare, RefreshCw, UserPlus } from "lucide-react";
+import { AtSign, BadgeCheck, Bell, MessageSquare, RefreshCw, Sparkles, UserPlus } from "lucide-react";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
@@ -16,6 +16,7 @@ const ICONS: Record<string, typeof Bell> = {
   chat: MessageSquare,
   status: RefreshCw,
   approval: BadgeCheck,
+  lead: Sparkles,
 };
 
 export default async function NotificationsPage() {

@@ -27,6 +27,7 @@ export const PERMISSIONS = [
   "chat.client",
   "approvals.decide",
   "activity.viewAll",
+  "leads.manage", // landing-page project requests
   "dashboard.admin",
   "dashboard.employee",
   "dashboard.client",
