@@ -7,7 +7,6 @@ import {
   Check,
   Clapperboard,
   Handshake,
-  Languages,
   Mail,
   Megaphone,
   MessageCircle,
@@ -20,6 +19,7 @@ import { FadaLogo, FadaMark } from "@/components/site/brand";
 import { Reveal } from "@/components/site/reveal";
 import { LeadForm } from "@/components/site/lead-form";
 import { cn } from "@/components/ui";
+import { LangSwitch } from "@/components/site/lang-switch";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { lang, t } = await getDict();
@@ -33,7 +33,6 @@ const SERVICE_ICONS = { content: PenTool, production: Clapperboard, paid: Megaph
 
 export default async function LandingPage() {
   const [{ lang, t }, user] = await Promise.all([getDict(), getCurrentUser()]);
-  const other = lang === "ar" ? "en" : "ar";
   const portalHref = user ? "/" : "/login";
   const portalLabel = user ? t.nav.dashboard : t.nav.login;
   const Arrow = lang === "ar" ? ArrowLeft : ArrowRight;
@@ -54,13 +53,7 @@ export default async function LandingPage() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <a
-              href={`/lang?to=${other}&next=${user ? "/welcome" : "/"}`}
-              className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white"
-            >
-              <Languages className="size-4" />
-              <span>{t.nav.switchTo}</span>
-            </a>
+            <LangSwitch lang={lang} next={user ? "/welcome" : "/"} />
             <Link
               href={portalHref}
               className="rounded-full bg-sand-200 px-4 py-2 text-sm font-semibold text-ink transition hover:bg-sand-100"

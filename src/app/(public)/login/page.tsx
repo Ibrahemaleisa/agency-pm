@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowRight, BadgeCheck, FolderKanban, Languages, MessagesSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, FolderKanban, MessagesSquare } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getDict } from "@/lib/lang";
 import { loginAction } from "@/server/auth-actions";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { FadaLogo } from "@/components/site/brand";
+import { LangSwitch } from "@/components/site/lang-switch";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getDict();
@@ -72,12 +73,7 @@ export default async function LoginPage() {
           <Link href="/" className="flex items-center gap-2 text-sm text-zinc-400 transition hover:text-white">
             <Back className="size-4" /> {t.login.back}
           </Link>
-          <a
-            href={`/lang?to=${lang === "ar" ? "en" : "ar"}&next=/login`}
-            className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white"
-          >
-            <Languages className="size-4" /> {t.nav.switchTo}
-          </a>
+          <LangSwitch lang={lang} next="/login" />
         </div>
 
         <div className="flex flex-1 items-center justify-center py-10">

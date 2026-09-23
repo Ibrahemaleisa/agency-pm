@@ -1,7 +1,3 @@
-import "@fontsource-variable/alexandria";
-import "@fontsource/ibm-plex-sans-arabic/400.css";
-import "@fontsource/ibm-plex-sans-arabic/500.css";
-import "@fontsource/ibm-plex-sans-arabic/600.css";
 import { getLang } from "@/lib/lang";
 import { dirOf } from "@/lib/i18n";
 
