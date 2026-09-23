@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronDown, Download, Eye, EyeOff, Lock, Paperclip, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Download, Eye, EyeOff, ImageIcon, Lock, Paperclip, Pencil, Trash2 } from "lucide-react";
 import { db } from "@/db";
 import { attachments, projectModules, taskComments, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
@@ -35,7 +35,9 @@ import {
   PageHeader,
   Select,
   Textarea,
+  FILE_INPUT,
   cn,
+  isImageType,
 } from "@/components/ui";
 import { ApprovalBadge, DueDate, Person, PriorityBadge, StatusBadge } from "@/components/labels";
 
@@ -67,6 +69,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       .select({
         id: attachments.id,
         fileName: attachments.fileName,
+        mimeType: attachments.mimeType,
         size: attachments.size,
         clientVisible: attachments.clientVisible,
         createdAt: attachments.createdAt,
@@ -82,6 +85,29 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   ]);
 
   const canDecide = can(user, "approvals.decide") && task.approvalStatus === "pending";
+  const images = files.filter((f) => isImageType(f.mimeType));
+  const docs = files.filter((f) => !isImageType(f.mimeType));
+  const canManageFile = (f: (typeof files)[number]) => f.uploaderId === user.id || user.role === "admin";
+  const fileActions = (f: (typeof files)[number]) => (
+    <>
+      {can(user, "tasks.setClientVisibility") && (
+        <form action={toggleAttachmentVisibility}>
+          <input type="hidden" name="attachmentId" value={f.id} />
+          <button className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title={f.clientVisible ? k.hideFromClient : k.shareWithClient}>
+            {f.clientVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        </form>
+      )}
+      {canManageFile(f) && (
+        <form action={deleteAttachment}>
+          <input type="hidden" name="attachmentId" value={f.id} />
+          <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title={tr.common.delete}>
+            <Trash2 className="size-4" />
+          </button>
+        </form>
+      )}
+    </>
+  );
 
   return (
     <>
@@ -112,7 +138,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             <div className="rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-4 md:p-5">
               <h2 className="text-sm font-semibold text-amber-900">{k.approvalNeeded}</h2>
               <p className="mt-1 text-sm text-amber-800">
-                Review the deliverables below, then approve or request changes.
+                {k.approvalNeededHint}
               </p>
               <ActionForm action={decideApproval} className="mt-3 space-y-2">
                 <input type="hidden" name="taskId" value={task.id} />
@@ -136,7 +162,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
 
           <Card title={k.description}>
             {task.description ? (
-              <p className="text-sm whitespace-pre-wrap text-zinc-700">{task.description}</p>
+              <p dir="auto" className="text-sm whitespace-pre-wrap text-zinc-700">{task.description}</p>
             ) : (
               <p className="text-sm text-zinc-400">{k.noDescription}</p>
             )}
@@ -150,11 +176,39 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             }
             padded={false}
           >
-            {files.length === 0 ? (
-              <EmptyState>{k.noFiles}</EmptyState>
-            ) : (
+            {files.length === 0 && <EmptyState>{k.noFiles}</EmptyState>}
+            {images.length > 0 && (
+              <div className="border-b border-zinc-100 p-4">
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-zinc-500">
+                  <ImageIcon className="size-3.5" /> {tr.media.images} ({images.length})
+                </div>
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {images.map((f) => (
+                    <li key={f.id} className="group overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+                      <a href={`/api/files/${f.id}?inline`} target="_blank" rel="noopener" className="block aspect-[4/3] overflow-hidden bg-zinc-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- private, access-checked file route */}
+                        <img
+                          src={`/api/files/${f.id}?inline`}
+                          alt={f.fileName}
+                          loading="lazy"
+                          className="size-full object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      </a>
+                      <div className="flex items-center gap-1 px-2 py-1.5">
+                        <span className="min-w-0 flex-1 truncate text-xs text-zinc-600" title={f.fileName}>
+                          {f.fileName}
+                        </span>
+                        {!isClient && f.clientVisible && <Eye className="size-3.5 text-amber-600" aria-label={k.sharedWithClient} />}
+                        {fileActions(f)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {docs.length > 0 && (
               <ul className="divide-y divide-zinc-100">
-                {files.map((f) => (
+                {docs.map((f) => (
                   <li key={f.id} className="flex items-center gap-3 px-4 py-2.5">
                     <div className="min-w-0 flex-1">
                       <a href={`/api/files/${f.id}`} className="block truncate text-sm font-medium hover:text-indigo-600">
@@ -168,22 +222,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                     <a href={`/api/files/${f.id}`} className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title={k.download}>
                       <Download className="size-4" />
                     </a>
-                    {can(user, "tasks.setClientVisibility") && (
-                      <form action={toggleAttachmentVisibility}>
-                        <input type="hidden" name="attachmentId" value={f.id} />
-                        <button className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title={f.clientVisible ? k.hideFromClient : k.shareWithClient}>
-                          {f.clientVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                        </button>
-                      </form>
-                    )}
-                    {(f.uploaderId === user.id || user.role === "admin") && (
-                      <form action={deleteAttachment}>
-                        <input type="hidden" name="attachmentId" value={f.id} />
-                        <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title={tr.common.delete}>
-                          <Trash2 className="size-4" />
-                        </button>
-                      </form>
-                    )}
+                    {fileActions(f)}
                   </li>
                 ))}
               </ul>
@@ -191,15 +230,10 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
             {can(user, "files.upload") && (
               <ActionForm action={uploadAttachment} resetOnSuccess className="flex flex-wrap items-center gap-3 border-t border-zinc-100 px-4 py-3">
                 <input type="hidden" name="taskId" value={task.id} />
-                <input
-                  type="file"
-                  name="file"
-                  required
-                  className="text-sm file:me-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-zinc-200"
-                />
+                <input type="file" name="files" multiple required aria-label={tr.media.addFiles} className={cn(FILE_INPUT, "w-auto flex-1")} />
                 {can(user, "tasks.setClientVisibility") && <Checkbox name="clientVisible" label={k.shareWithClient} />}
                 <SubmitButton size="sm" variant="secondary" pendingText={k.uploading}>
-                  Upload
+                  {tr.media.upload}
                 </SubmitButton>
               </ActionForm>
             )}
@@ -229,7 +263,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
                           ))}
                         <span className="text-xs text-zinc-400">{formatDistanceToNow(c.createdAt, { addSuffix: true, locale })}</span>
                       </div>
-                      <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-700">
+                      <p dir="auto" className="mt-1 text-sm whitespace-pre-wrap text-zinc-700">
                         <Highlight text={c.body} />
                       </p>
                     </div>

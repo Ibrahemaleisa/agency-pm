@@ -44,6 +44,15 @@ Uploaded files are stored in the database by default on Vercel (4 MB limit per f
 volumes, add a **Blob** store in the Storage tab (sets `BLOB_READ_WRITE_TOKEN`) and redeploy — new
 uploads then go to Vercel Blob. Set `SHOW_DEMO_ACCOUNTS=true` to list the demo logins on the login page.
 
+### Email notifications
+
+Every notification appears in the app (bell + Notifications page) and is also emailed, in each
+user's language, once email is configured. Add **either** `RESEND_API_KEY` **or** SMTP settings
+(`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) plus `EMAIL_FROM` in Vercel → Settings →
+Environment Variables, then redeploy. See `.env.example`. Users can switch email off on the
+Notifications page. Demo accounts start with email **off**; changing an account's email address
+(Team & Users → Edit) switches it on.
+
 **Change the demo passwords** (Team & Users → Edit) before sharing the URL — every demo account uses `password`.
 
 ## How it's organized

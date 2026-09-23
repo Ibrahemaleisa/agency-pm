@@ -19,7 +19,15 @@ import {
 import { requireUser, type SessionUser } from "@/lib/auth";
 import { getAccessibleProject } from "@/lib/access";
 import { assertCan, ForbiddenError } from "@/lib/permissions";
-import { getProjectAudience, logActivity, notify, resolveMentions } from "@/lib/events";
+import {
+  getProjectAudience,
+  getProjectStaffIds,
+  listAdminIds,
+  logActivity,
+  notify,
+  resolveMentions,
+} from "@/lib/events";
+import { nt } from "@/lib/notify-text";
 import { addModuleToProject } from "@/lib/modules";
 import { str, type ActionState } from "@/lib/action-state";
 import { projectStatusLabel } from "@/lib/constants";
@@ -99,8 +107,15 @@ export async function createProject(_prev: ActionState, fd: FormData): Promise<A
     clientVisible: true,
   });
   await notify(user, memberIds.concat(ownerId), {
-    type: "assigned",
-    title: `You were added to project "${name}"`,
+    type: "project",
+    title: nt.addedToProject(name),
+    body: project.description,
+    link: `/projects/${project.id}`,
+  });
+  const team = new Set([...memberIds, ownerId]);
+  await notify(user, (await listAdminIds(user.orgId)).filter((id) => !team.has(id)), {
+    type: "project",
+    title: nt.projectCreated(user.name, name, client.name),
     link: `/projects/${project.id}`,
   });
   refresh();
@@ -145,10 +160,18 @@ export async function updateProject(_prev: ActionState, fd: FormData): Promise<A
     clientVisible: status !== project.status,
   });
   await notify(user, added, {
-    type: "assigned",
-    title: `You were added to project "${name}"`,
+    type: "project",
+    title: nt.addedToProject(name),
     link: `/projects/${project.id}`,
   });
+  if (status !== project.status) {
+    const [admins, staff] = await Promise.all([listAdminIds(user.orgId), getProjectStaffIds(project.id)]);
+    await notify(user, [...admins, ...staff].filter((id) => !added.includes(id)), {
+      type: "status",
+      title: nt.projectStatus(user.name, name, status),
+      link: `/projects/${project.id}`,
+    });
+  }
   refresh();
   return { ok: true };
 }
@@ -235,15 +258,22 @@ export async function sendChatMessage(_prev: ActionState, fd: FormData): Promise
   const people = channel === "client" ? [...audience.internal, ...audience.clients] : audience.internal;
   const mentioned = resolveMentions(body, people);
   const link = `/projects/${project.id}?tab=chat&channel=${channel}`;
-  await notify(user, mentioned, { type: "mention", title: `${user.name} mentioned you in ${project.name} chat`, link });
-  // Client messages are important to surface to the account team.
-  if (user.role === "client") {
-    await notify(
-      user,
-      [project.ownerId, ...audience.internal.map((u) => u.id)].filter((id) => id && !mentioned.includes(id)),
-      { type: "chat", title: `${user.name} sent a message in ${project.name}`, link },
-    );
-  }
+  await notify(user, mentioned, { type: "mention", title: nt.mentionChat(user.name, project.name), body, link });
+
+  // Everyone working on the project hears about new messages; clients too in the client channel.
+  const recipients = await getProjectStaffIds(project.id);
+  if (project.ownerId) recipients.push(project.ownerId);
+  if (channel === "client") recipients.push(...audience.clients.map((c) => c.id));
+  await notify(
+    user,
+    recipients.filter((id) => !mentioned.includes(id)),
+    {
+      type: "chat",
+      title: channel === "client" ? nt.chatClient(user.name, project.name) : nt.chatInternal(user.name, project.name),
+      body,
+      link,
+    },
+  );
   refresh();
   return { ok: true };
 }

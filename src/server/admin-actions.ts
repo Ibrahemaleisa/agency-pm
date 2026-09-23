@@ -151,10 +151,21 @@ export async function updateUser(_prev: ActionState, fd: FormData): Promise<Acti
   const password = str(fd, "password");
   if (password && password.length < 8) return { error: (await msg()).passwordLength };
 
+  const email = str(fd, "email")?.toLowerCase() ?? target.email;
+  const emailChanged = email !== target.email;
+  if (emailChanged) {
+    if (!isEmail(email)) return { error: (await msg()).invalidEmail };
+    const taken = await db.query.users.findFirst({ where: eq(users.email, email) });
+    if (taken) return { error: (await msg()).emailExists };
+  }
+
   await db
     .update(users)
     .set({
       name,
+      email,
+      // A new (real) address gets email notifications switched on.
+      ...(emailChanged ? { emailNotifications: true } : {}),
       role,
       title: str(fd, "title"),
       clientId,
@@ -252,5 +263,14 @@ export async function markAllNotificationsRead() {
     .update(notifications)
     .set({ readAt: new Date() })
     .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)));
+  refresh();
+}
+
+export async function setEmailNotifications(fd: FormData) {
+  const user = await requireUser();
+  await db
+    .update(users)
+    .set({ emailNotifications: str(fd, "on") === "1" })
+    .where(eq(users.id, user.id));
   refresh();
 }

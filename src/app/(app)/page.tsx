@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Eye,
   FolderKanban,
+  Grid3x3,
   Inbox,
   ListTodo,
   Percent,
@@ -21,10 +22,12 @@ import {
   listActivity,
   listProjects,
   listTasks,
+  projectMatrix,
   taskCountsByStatus,
   teamWorkload,
 } from "@/server/queries";
 import { ActivityFeed, ProjectGrid, TaskTable } from "@/components/lists";
+import { ProjectMatrix } from "@/components/project-matrix";
 import {
   Avatar,
   Card,
@@ -56,7 +59,7 @@ type Props = { user: SessionUser; t: AppDict; lang: Lang };
 
 async function AdminDashboard({ user, t, lang }: Props) {
   const d = t.dashboard;
-  const [openProjects, overdueAll, approvalsAll, unassignedTasks, byStatus, workload, activity] =
+  const [openProjects, overdueAll, approvalsAll, unassignedTasks, byStatus, workload, activity, matrix] =
     await Promise.all([
       listProjects(user, { status: "open" }),
       listTasks(user, { overdue: true }),
@@ -65,6 +68,7 @@ async function AdminDashboard({ user, t, lang }: Props) {
       taskCountsByStatus(user),
       teamWorkload(user),
       listActivity(user, { limit: 12 }),
+      projectMatrix(user),
     ]);
   const active = openProjects.filter((p) => p.status === "active");
   const overdue = overdueAll.slice(0, 8);
@@ -80,6 +84,11 @@ async function AdminDashboard({ user, t, lang }: Props) {
         <Stat label={d.inReview} value={byStatus.review ?? 0} tone="violet" href="/tasks?status=review" icon={<Eye className="size-4" />} />
         <Stat label={d.unassigned} value={unassignedTasks.length} href="/tasks?view=unassigned" icon={<UserX className="size-4" />} hint={d.unassignedHint} />
       </div>
+
+      <Card title={<CardTitle icon={<Grid3x3 className="size-4 text-zinc-500" />}>{t.matrix.title}</CardTitle>} className="mt-6" padded={false}>
+        <p className="-mt-1 px-4 pb-1 text-xs text-zinc-500 md:px-5">{t.matrix.subtitle}</p>
+        <ProjectMatrix rows={matrix} t={t} />
+      </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card title={d.tasksByStatus} className="lg:col-span-1">
@@ -114,13 +123,14 @@ async function AdminDashboard({ user, t, lang }: Props) {
 
 async function EmployeeDashboard({ user, t, lang }: Props) {
   const d = t.dashboard;
-  const [mine, dueToday, overdue, review, activity, myProjects] = await Promise.all([
+  const [mine, dueToday, overdue, review, activity, myProjects, matrix] = await Promise.all([
     listTasks(user, { assigneeId: user.id, status: "open" }),
     listTasks(user, { assigneeId: user.id, dueToday: true }),
     listTasks(user, { assigneeId: user.id, overdue: true }),
     listTasks(user, { status: "review" }),
     listActivity(user, { limit: 10 }),
     listProjects(user, { status: "open" }),
+    projectMatrix(user),
   ]);
   // "Waiting for me": items in review I created/own + my tasks where the client asked for changes.
   const waitingForMe = [
@@ -186,6 +196,13 @@ async function EmployeeDashboard({ user, t, lang }: Props) {
           </Card>
         </div>
       </div>
+
+      {matrix.length > 0 && (
+        <Card title={<CardTitle icon={<Grid3x3 className="size-4 text-zinc-500" />}>{t.matrix.title}</CardTitle>} className="mt-6" padded={false}>
+          <p className="-mt-1 px-4 pb-1 text-xs text-zinc-500 md:px-5">{t.matrix.subtitle}</p>
+          <ProjectMatrix rows={matrix} t={t} />
+        </Card>
+      )}
     </>
   );
 }

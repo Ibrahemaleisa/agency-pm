@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Activity,
   BadgeCheck,
@@ -14,6 +14,8 @@ import {
   LayoutTemplate,
   LogOut,
   Menu,
+  MessagesSquare,
+  Search,
   Sparkles,
   Users,
   X,
@@ -23,6 +25,7 @@ import { FadaMark } from "./site/brand";
 import { LangSwitch } from "./site/lang-switch";
 import type { Lang } from "@/lib/i18n";
 import { logoutAction } from "@/server/auth-actions";
+import { NotificationBell, useUnread } from "./notification-bell";
 
 const ICONS = {
   dashboard: LayoutDashboard,
@@ -35,6 +38,7 @@ const ICONS = {
   team: Users,
   templates: LayoutTemplate,
   leads: Sparkles,
+  teamChat: MessagesSquare,
 };
 
 export type NavItem = {
@@ -55,20 +59,23 @@ export function Sidebar({
   initialUnread,
   lang,
   labels,
+  bellLabels,
 }: {
   items: NavItem[];
   user: { name: string; roleLabel: string };
   orgName: string;
   initialUnread: number;
   lang: Lang;
-  labels: { more: string; signOut: string; alerts: string; workspace: string; close: string };
+  labels: { more: string; signOut: string; alerts: string; workspace: string; close: string; search: string };
+  bellLabels: { title: string; viewAll: string; empty: string; markAll: string };
 }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  const unread = useUnreadCount(initialUnread);
+  const unread = useUnread(initialUnread);
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
-  const badgeFor = (item: NavItem) => (item.icon === "notifications" ? unread : item.badge);
+  const badgeFor = (item: NavItem) =>
+    item.icon === "notifications" ? unread : item.icon === "teamChat" && isActive(item.href) ? 0 : item.badge;
 
   const tabs = MOBILE_TABS.map((icon) => items.find((i) => i.icon === icon)).filter(Boolean).slice(0, 4) as NavItem[];
   const rest = items.filter((i) => !tabs.includes(i));
@@ -144,9 +151,14 @@ export function Sidebar({
         </div>
         <div className="flex items-center gap-2">
           <LangSwitch lang={lang} next={pathname} tone="light" />
-          <span className="flex size-8 items-center justify-center rounded-full bg-sand-200 text-xs font-semibold text-ink">
-            {initials}
-          </span>
+          <Link
+            href="/search"
+            aria-label={labels.search}
+            className="flex size-9 items-center justify-center rounded-full bg-white text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-100"
+          >
+            <Search className="size-[18px]" />
+          </Link>
+          <NotificationBell initialUnread={initialUnread} lang={lang} labels={bellLabels} />
         </div>
       </header>
 
@@ -264,27 +276,4 @@ function Brand({ orgName, workspace }: { orgName: string; workspace: string }) {
       </div>
     </div>
   );
-}
-
-/** Poll unread notification count so the badge stays fresh without full page refreshes. */
-function useUnreadCount(initial: number) {
-  const [count, setCount] = useState(initial);
-  // Reset to the server value whenever a fresh render provides one.
-  const [lastInitial, setLastInitial] = useState(initial);
-  if (initial !== lastInitial) {
-    setLastInitial(initial);
-    setCount(initial);
-  }
-  useEffect(() => {
-    const load = async () => {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const res = await fetch("/api/notifications/count", { cache: "no-store" });
-        if (res.ok) setCount((await res.json()).unread);
-      } catch {}
-    };
-    const id = setInterval(load, 20000);
-    return () => clearInterval(id);
-  }, []);
-  return count;
 }

@@ -2,7 +2,7 @@ import type { ProjectModule } from "@/db/schema";
 import { PRIORITIES } from "@/lib/constants";
 import { createTask } from "@/server/task-actions";
 import { ActionForm, SubmitButton } from "./forms";
-import { Checkbox, Field, Input, Select, Textarea } from "./ui";
+import { Checkbox, FILE_INPUT, Field, Input, Select, Textarea } from "./ui";
 import { getT } from "@/lib/lang";
 
 export async function TaskCreateForm({
@@ -56,6 +56,9 @@ export async function TaskCreateForm({
         </Field>
         <Field label={f.description} className="sm:col-span-6">
           <Textarea name="description" rows={2} />
+        </Field>
+        <Field label={t.media.attachments} hint={t.media.attachmentsHint} className="sm:col-span-6">
+          <input type="file" name="files" multiple className={FILE_INPUT} />
         </Field>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">

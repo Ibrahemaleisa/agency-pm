@@ -19,7 +19,16 @@ import {
 import { requireUser, type SessionUser } from "@/lib/auth";
 import { getAccessibleProject, getAccessibleTask } from "@/lib/access";
 import { assertCan, can, ForbiddenError } from "@/lib/permissions";
-import { getProjectAudience, logActivity, notify, resolveMentions } from "@/lib/events";
+import {
+  getProjectAudience,
+  getProjectStaffIds,
+  getTaskCommenterIds,
+  listAdminIds,
+  logActivity,
+  notify,
+  resolveMentions,
+} from "@/lib/events";
+import { nt } from "@/lib/notify-text";
 import { bool, str, type ActionState } from "@/lib/action-state";
 import { taskStatusLabel } from "@/lib/constants";
 import { MAX_UPLOAD_BYTES, removeFile, saveFile } from "@/lib/uploads";
@@ -74,6 +83,9 @@ export async function createTask(_prev: ActionState, fd: FormData): Promise<Acti
     stage = mod.stages.some((s) => s.name === rawStage) ? rawStage : null;
   }
 
+  if (fd.getAll("files").some((f) => f instanceof File && f.size > MAX_UPLOAD_BYTES))
+    return { error: (await msg()).fileTooLarge(MAX_UPLOAD_BYTES / 1024 / 1024) };
+
   const requiresApproval = bool(fd, "requiresApproval");
   const [task] = await db
     .insert(tasks)
@@ -99,10 +111,13 @@ export async function createTask(_prev: ActionState, fd: FormData): Promise<Acti
     projectId: project.id,
     taskId: task.id,
   });
+  const uploaded = await storeAttachments(user, task, fd.getAll("files"), task.clientVisible && can(user, "tasks.setClientVisibility"));
+  if (uploaded.error) return uploaded;
   if (assigneeId && assigneeId !== user.id) {
     await notify(user, [assigneeId], {
       type: "assigned",
-      title: `${user.name} assigned you "${title}"`,
+      title: nt.assigned(user.name, title),
+      body: task.description,
       link: taskLink(task.id),
     });
   }
@@ -172,7 +187,8 @@ export async function assignTask(fd: FormData) {
   if (assigneeId) {
     await notify(user, [assigneeId], {
       type: "assigned",
-      title: `${user.name} assigned you "${task.title}"`,
+      title: nt.assigned(user.name, task.title),
+      body: task.description,
       link: taskLink(task.id),
     });
   }
@@ -231,16 +247,18 @@ export async function updateTaskStatus(fd: FormData) {
     taskId: task.id,
     clientVisible,
   });
-  await notify(user, [task.assigneeId, task.createdById], {
+  // Progress updates go to every admin and everyone working on the project.
+  const [admins, staff] = await Promise.all([listAdminIds(user.orgId), getProjectStaffIds(project.id)]);
+  await notify(user, [task.assigneeId, task.createdById, ...admins, ...staff], {
     type: "status",
-    title: `"${task.title}" moved to ${taskStatusLabel(status)}`,
+    title: nt.taskStatus(user.name, task.title, status, project.name),
     link: taskLink(task.id),
   });
   if (approvalStatus === "pending" && task.approvalStatus !== "pending") {
     const { clients } = await getProjectAudience(project.id);
     await notify(user, clients.map((c) => c.id), {
       type: "approval",
-      title: `Approval requested: "${task.title}"`,
+      title: nt.approvalRequested(task.title),
       link: taskLink(task.id),
     });
   }
@@ -287,7 +305,8 @@ export async function decideApproval(_prev: ActionState, fd: FormData): Promise<
   const { internal } = await getProjectAudience(project.id);
   await notify(user, [task.assigneeId, task.createdById, project.ownerId, ...internal.map((u) => u.id)], {
     type: "approval",
-    title: `${user.name} ${approved ? "approved" : "requested changes on"} "${task.title}"`,
+    title: nt.approvalDecided(user.name, approved, task.title),
+    body: feedback,
     link: taskLink(task.id),
   });
   refresh();
@@ -320,19 +339,22 @@ export async function addComment(_prev: ActionState, fd: FormData): Promise<Acti
   const audience = await getProjectAudience(project.id);
   const mentionable = internal ? audience.internal : [...audience.internal, ...audience.clients];
   const mentioned = resolveMentions(body, mentionable);
-  await notify(user, mentioned, {
-    type: "mention",
-    title: `${user.name} mentioned you on "${task.title}"`,
-    link: taskLink(task.id),
-  });
-  const watchers = [task.assigneeId, task.createdById];
+  const link = taskLink(task.id);
+  await notify(user, mentioned, { type: "mention", title: nt.mentionTask(user.name, task.title), body, link });
+
+  // Assignee + creator always hear about comments on their task.
+  const watchers = [task.assigneeId, task.createdById].filter((id) => id && !mentioned.includes(id));
   if (user.role === "client") watchers.push(project.ownerId);
   if (!internal && user.role !== "client") watchers.push(...audience.clients.map((c) => c.id));
-  await notify(
-    user,
-    watchers.filter((id) => id && !mentioned.includes(id)),
-    { type: "comment", title: `${user.name} commented on "${task.title}"`, link: taskLink(task.id) },
-  );
+  await notify(user, watchers, { type: "comment", title: nt.commentTask(user.name, task.title), body, link });
+
+  // Anyone who already took part in the thread gets the reply (clients only for client-visible replies).
+  const earlier = await getTaskCommenterIds(task.id);
+  const repliedTo = earlier
+    .filter((c) => c.id && (!internal || c.role !== "client"))
+    .map((c) => c.id)
+    .filter((id) => !mentioned.includes(id!) && !watchers.includes(id));
+  await notify(user, repliedTo, { type: "comment", title: nt.replyTask(user.name, task.title), body, link });
   refresh();
   return { ok: true };
 }
@@ -345,36 +367,11 @@ export async function uploadAttachment(_prev: ActionState, fd: FormData): Promis
   const user = await requireUser();
   assertCan(user, "files.upload");
   const { task } = await getAccessibleTask(user, str(fd, "taskId") ?? "");
-  const file = fd.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: (await msg()).chooseFile };
-  if (file.size > MAX_UPLOAD_BYTES)
-    return { error: (await msg()).fileTooLarge(MAX_UPLOAD_BYTES / 1024 / 1024) };
-
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_").slice(-100);
-  const storageKey = `${user.orgId}/${randomUUID()}-${safeName}`;
-  await saveFile(storageKey, Buffer.from(await file.arrayBuffer()), file.type || "application/octet-stream");
-
   const clientVisible = can(user, "tasks.setClientVisibility") && bool(fd, "clientVisible");
-  await db.insert(attachments).values({
-    orgId: user.orgId,
-    taskId: task.id,
-    uploaderId: user.id,
-    fileName: file.name,
-    storageKey,
-    mimeType: file.type || "application/octet-stream",
-    size: file.size,
-    clientVisible,
-  });
-  if (clientVisible && !task.clientVisible) {
-    await db.update(tasks).set({ clientVisible: true }).where(eq(tasks.id, task.id));
-  }
-  await logActivity(user, {
-    action: "file.uploaded",
-    summary: `uploaded ${file.name} to "${task.title}"`,
-    projectId: task.projectId,
-    taskId: task.id,
-    clientVisible,
-  });
+  const files = [...fd.getAll("files"), ...fd.getAll("file")];
+  if (!files.some((f) => f instanceof File && f.size > 0)) return { error: (await msg()).chooseFile };
+  const res = await storeAttachments(user, task, files, clientVisible);
+  if (res.error) return res;
   refresh();
   return { ok: true };
 }
@@ -418,4 +415,46 @@ export async function deleteAttachment(fd: FormData) {
     taskId: task.id,
   });
   refresh();
+}
+
+/** Save uploaded files (images or documents) on a task. */
+async function storeAttachments(
+  user: SessionUser,
+  task: typeof tasks.$inferSelect,
+  entries: FormDataEntryValue[],
+  clientVisible: boolean,
+): Promise<{ error?: string }> {
+  const files = entries.filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) return {};
+  assertCan(user, "files.upload");
+  if (files.some((f) => f.size > MAX_UPLOAD_BYTES))
+    return { error: (await msg()).fileTooLarge(MAX_UPLOAD_BYTES / 1024 / 1024) };
+
+  for (const file of files) {
+    const safeName = file.name.replace(/[^\w.\-]+/g, "_").slice(-100);
+    const storageKey = `${user.orgId}/${randomUUID()}-${safeName}`;
+    const mimeType = file.type || "application/octet-stream";
+    await saveFile(storageKey, Buffer.from(await file.arrayBuffer()), mimeType);
+    await db.insert(attachments).values({
+      orgId: user.orgId,
+      taskId: task.id,
+      uploaderId: user.id,
+      fileName: file.name,
+      storageKey,
+      mimeType,
+      size: file.size,
+      clientVisible,
+    });
+  }
+  if (clientVisible && !task.clientVisible) {
+    await db.update(tasks).set({ clientVisible: true }).where(eq(tasks.id, task.id));
+  }
+  await logActivity(user, {
+    action: "file.uploaded",
+    summary: `uploaded ${files.map((f) => f.name).join(", ")} to "${task.title}"`,
+    projectId: task.projectId,
+    taskId: task.id,
+    clientVisible,
+  });
+  return {};
 }

@@ -77,6 +77,7 @@ export default async function TeamPage() {
                         <ActionForm action={updateUser} className="space-y-3" successMessage={t.common.saved}>
                           <input type="hidden" name="userId" value={p.id} />
                           <Field label={m.name}><Input name="name" defaultValue={p.name} required /></Field>
+                          <Field label={m.email}><Input name="email" type="email" defaultValue={p.email} required dir="ltr" /></Field>
                           <Field label={m.jobTitle}><Input name="title" defaultValue={p.title ?? ""} /></Field>
                           <Field label={m.role}><Select name="role" defaultValue={p.role} options={roleOptions} /></Field>
                           <Field label={m.clientForUsers}>

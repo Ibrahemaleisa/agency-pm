@@ -92,6 +92,12 @@ export const users = pgTable(
     /** Set only for client-role users: which client company they belong to. */
     clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
     active: boolean("active").notNull().default(true),
+    /** Language used for this user's emails (kept in sync with the AR | EN switch). */
+    lang: text("lang").notNull().default("ar"),
+    /** Send notifications by email as well as in the app. */
+    emailNotifications: boolean("email_notifications").notNull().default(true),
+    /** Last time the user opened the team chat (drives the unread badge). */
+    teamChatSeenAt: timestamp("team_chat_seen_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("users_email_idx").on(t.email), index("users_org_idx").on(t.orgId)],
@@ -352,6 +358,21 @@ export const chatMessages = pgTable(
   (t) => [index("chat_messages_project_idx").on(t.projectId, t.channel)],
 );
 
+/** Org-wide chat for agency staff (admins + employees). */
+export const teamMessages = pgTable(
+  "team_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("team_messages_org_idx").on(t.orgId, t.createdAt)],
+);
+
 export const notifications = pgTable(
   "notifications",
   {
@@ -365,6 +386,10 @@ export const notifications = pgTable(
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
     type: text("type").notNull(), // assigned | mention | comment | status | approval | chat
     title: text("title").notNull(),
+    /** Arabic version of the title (the English one is in `title`). */
+    titleAr: text("title_ar"),
+    /** Optional excerpt, e.g. the comment or message that triggered it. */
+    body: text("body"),
     link: text("link"),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

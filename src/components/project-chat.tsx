@@ -75,6 +75,7 @@ export async function ProjectChat({
                       </div>
                     )}
                     <div
+                      dir="auto"
                       className={cn(
                         "rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap shadow-sm",
                         mine ? "rounded-ee-md bg-indigo-600 text-white [&_span]:text-indigo-100" : "rounded-es-md border border-zinc-200/80 bg-white text-zinc-800",

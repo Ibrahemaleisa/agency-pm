@@ -8,13 +8,14 @@ import {
   ilike,
   inArray,
   isNull,
+  gt,
   lt,
   ne,
   or,
   sql,
   type SQL,
 } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { format } from "date-fns";
 import { db } from "@/db";
 import {
@@ -24,6 +25,7 @@ import {
   projectModules,
   projects,
   tasks,
+  teamMessages,
   users,
   type TaskStatus,
 } from "@/db/schema";
@@ -31,6 +33,21 @@ import type { SessionUser } from "@/lib/auth";
 import { projectScope, taskScope } from "@/lib/access";
 
 export const todayISO = () => format(new Date(), "yyyy-MM-dd");
+
+/**
+ * Keyword search: every word must appear in at least one of the given columns.
+ * "bloom reel omar" finds Bloom Café tasks about reels assigned to Omar.
+ */
+export function keywordMatch(q: string | undefined, columns: AnyPgColumn[]): SQL | undefined {
+  const words = (q ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 8)
+    .map((w) => `%${w.replace(/[\\%_]/g, (c) => "\\" + c)}%`);
+  if (words.length === 0) return undefined;
+  return and(...words.map((w) => or(...columns.map((c) => ilike(c, w)))));
+}
 
 /* ------------------------------------------------------------------ */
 /* Tasks                                                               */
@@ -65,7 +82,17 @@ export async function listTasks(user: SessionUser, f: TaskFilter = {}) {
   if (f.dueToday) conds.push(and(eq(tasks.dueDate, today), ne(tasks.status, "completed")));
   if (f.approvalPending) conds.push(eq(tasks.approvalStatus, "pending"));
   if (f.approvalDecided) conds.push(inArray(tasks.approvalStatus, ["approved", "rejected"]));
-  if (f.q) conds.push(ilike(tasks.title, `%${f.q}%`));
+  conds.push(
+    keywordMatch(f.q, [
+      tasks.title,
+      tasks.description,
+      tasks.stage,
+      projects.name,
+      clients.name,
+      projectModules.name,
+      assignee.name,
+    ]),
+  );
 
   return db
     .select({
@@ -153,7 +180,7 @@ export async function listProjects(
   if (f.status === "open") conds.push(inArray(projects.status, ["planning", "active", "on_hold"]));
   else if (f.status) conds.push(eq(projects.status, f.status as never));
   if (f.clientId) conds.push(eq(projects.clientId, f.clientId));
-  if (f.q) conds.push(or(ilike(projects.name, `%${f.q}%`), ilike(clients.name, `%${f.q}%`)));
+  conds.push(keywordMatch(f.q, [projects.name, projects.description, clients.name, clients.industry, owner.name]));
 
   const taskStats = db
     .select({
@@ -256,6 +283,20 @@ export async function unreadNotificationCount(userId: string) {
   return row?.n ?? 0;
 }
 
+export async function unreadTeamMessages(user: SessionUser) {
+  const [row] = await db
+    .select({ n: count() })
+    .from(teamMessages)
+    .where(
+      and(
+        eq(teamMessages.orgId, user.orgId),
+        ne(teamMessages.authorId, user.id),
+        user.teamChatSeenAt ? gt(teamMessages.createdAt, user.teamChatSeenAt) : undefined,
+      ),
+    );
+  return row?.n ?? 0;
+}
+
 /* ------------------------------------------------------------------ */
 /* People                                                              */
 /* ------------------------------------------------------------------ */
@@ -275,3 +316,46 @@ export async function listClientsForOrg(orgId: string) {
     .where(eq(clients.orgId, orgId))
     .orderBy(asc(clients.name));
 }
+
+export async function searchClients(user: SessionUser, q: string) {
+  return db
+    .select({ id: clients.id, name: clients.name, industry: clients.industry, contactName: clients.contactName })
+    .from(clients)
+    .where(
+      and(
+        eq(clients.orgId, user.orgId),
+        keywordMatch(q, [clients.name, clients.industry, clients.contactName, clients.contactEmail, clients.website]),
+      ),
+    )
+    .orderBy(asc(clients.name))
+    .limit(20);
+}
+
+/** Open projects × task status counts, for the dashboard health matrix. */
+export async function projectMatrix(user: SessionUser) {
+  const today = todayISO();
+  const rows = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      status: projects.status,
+      startDate: projects.startDate,
+      endDate: projects.endDate,
+      clientName: clients.name,
+      todo: sql<number>`count(${tasks.id}) filter (where ${tasks.status} = 'todo')`.mapWith(Number),
+      in_progress: sql<number>`count(${tasks.id}) filter (where ${tasks.status} = 'in_progress')`.mapWith(Number),
+      review: sql<number>`count(${tasks.id}) filter (where ${tasks.status} = 'review')`.mapWith(Number),
+      waiting_client: sql<number>`count(${tasks.id}) filter (where ${tasks.status} = 'waiting_client')`.mapWith(Number),
+      completed: sql<number>`count(${tasks.id}) filter (where ${tasks.status} = 'completed')`.mapWith(Number),
+      overdue: sql<number>`count(${tasks.id}) filter (where ${tasks.status} <> 'completed' and ${tasks.dueDate} < ${today})`.mapWith(Number),
+    })
+    .from(projects)
+    .innerJoin(clients, eq(clients.id, projects.clientId))
+    .leftJoin(tasks, eq(tasks.projectId, projects.id))
+    .where(and(projectScope(user), inArray(projects.status, ["planning", "active", "on_hold"])))
+    .groupBy(projects.id, clients.name)
+    .orderBy(asc(projects.endDate));
+  return rows;
+}
+
+export type MatrixRow = Awaited<ReturnType<typeof projectMatrix>>[number];

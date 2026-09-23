@@ -8,6 +8,8 @@ import * as s from "./schema";
 import { DEFAULT_TEMPLATES } from "../lib/default-templates";
 import { addModuleToProject } from "../lib/modules";
 import { saveFile } from "../lib/uploads";
+import { nt } from "../lib/notify-text";
+import type { Localized } from "../lib/events";
 
 const today = new Date();
 const d = (offset: number) => format(addDays(today, offset), "yyyy-MM-dd");
@@ -40,7 +42,7 @@ async function main() {
   ] as const;
   const staffRows = await db
     .insert(s.users)
-    .values(staffData.map((u) => ({ name: u.name, email: u.email, role: u.role, title: u.title, orgId: org.id, passwordHash })))
+    .values(staffData.map((u) => ({ name: u.name, email: u.email, role: u.role, title: u.title, orgId: org.id, passwordHash, emailNotifications: false })))
     .returning();
   const U = Object.fromEntries(staffData.map((u, i) => [u.key, staffRows[i]])) as Record<
     (typeof staffData)[number]["key"],
@@ -90,9 +92,9 @@ async function main() {
   const [lina, daniel, rana] = await db
     .insert(s.users)
     .values([
-      { orgId: org.id, name: "Lina Mansour", email: "lina@bloomcafe.com", role: "client", title: "Marketing Manager", clientId: C.bloom.id, passwordHash },
-      { orgId: org.id, name: "Daniel Price", email: "daniel@atlasfitness.com", role: "client", title: "Founder", clientId: C.atlas.id, passwordHash },
-      { orgId: org.id, name: "Rana Aziz", email: "rana@verde-re.com", role: "client", title: "Head of Sales", clientId: C.verde.id, passwordHash },
+      { orgId: org.id, name: "Lina Mansour", email: "lina@bloomcafe.com", role: "client", title: "Marketing Manager", clientId: C.bloom.id, passwordHash, emailNotifications: false },
+      { orgId: org.id, name: "Daniel Price", email: "daniel@atlasfitness.com", role: "client", title: "Founder", clientId: C.atlas.id, passwordHash, emailNotifications: false },
+      { orgId: org.id, name: "Rana Aziz", email: "rana@verde-re.com", role: "client", title: "Head of Sales", clientId: C.verde.id, passwordHash, emailNotifications: false },
     ])
     .returning();
 
@@ -397,27 +399,39 @@ async function main() {
   ]);
 
   /* ---------------- Notifications ---------------- */
-  const n = (user: s.User, actor: s.User, type: string, title: string, link: string, hoursAgo: number, read = false) => ({
+  const n = (user: s.User, actor: s.User, type: string, title: Localized, link: string, hoursAgo: number, read = false) => ({
     orgId: org.id,
     userId: user.id,
     actorId: actor.id,
     type,
-    title,
+    title: title.en,
+    titleAr: title.ar,
     link,
     createdAt: subHours(today, hoursAgo),
     readAt: read ? subHours(today, hoursAgo - 1) : null,
   });
+  const bloomName = "Autumn Menu Launch";
   await db.insert(s.notifications).values([
-    n(U.leila, U.omar, "assigned", `Omar Khalil assigned you "${captionsTask.title}"`, `/tasks/${captionsTask.id}`, 22),
-    n(U.leila, U.omar, "mention", `Omar Khalil mentioned you on "${captionsTask.title}"`, `/tasks/${captionsTask.id}`, 20),
-    n(U.omar, U.maya, "mention", `Maya Rahman mentioned you on "${teaserTask.title}"`, `/tasks/${teaserTask.id}`, 6),
-    n(U.omar, U.leila, "comment", `Leila Farouk commented on "${captionsTask.title}"`, `/tasks/${captionsTask.id}`, 19, true),
-    n(U.yusuf, U.adam, "mention", "Adam Brooks mentioned you in Autumn Menu Launch chat", `/projects/${bloomId}?tab=chat&channel=internal`, 5),
-    n(U.omar, U.adam, "mention", "Adam Brooks mentioned you in Autumn Menu Launch chat", `/projects/${bloomId}?tab=chat&channel=client`, 7),
-    n(U.adam, lina, "chat", "Lina Mansour sent a message in Autumn Menu Launch", `/projects/${bloomId}?tab=chat&channel=client`, 7),
-    n(lina, U.adam, "approval", `Approval requested: "${heroTask.title}"`, `/tasks/${heroTask.id}`, 8),
-    n(lina, U.omar, "approval", `Approval requested: "Content: Client Review"`, `/tasks/${bloomClientReview.id}`, 26),
-    n(U.sara, U.karim, "status", `"Legal review of brochure copy" moved to Waiting for Client`, `/tasks/${extra[7].id}`, 50, true),
+    n(U.leila, U.omar, "assigned", nt.assigned(U.omar.name, captionsTask.title), `/tasks/${captionsTask.id}`, 22),
+    n(U.leila, U.omar, "mention", nt.mentionTask(U.omar.name, captionsTask.title), `/tasks/${captionsTask.id}`, 20),
+    n(U.omar, U.maya, "mention", nt.mentionTask(U.maya.name, teaserTask.title), `/tasks/${teaserTask.id}`, 6),
+    n(U.omar, U.leila, "comment", nt.commentTask(U.leila.name, captionsTask.title), `/tasks/${captionsTask.id}`, 19, true),
+    n(U.yusuf, U.adam, "mention", nt.mentionChat(U.adam.name, bloomName), `/projects/${bloomId}?tab=chat&channel=internal`, 5),
+    n(U.omar, U.adam, "mention", nt.mentionChat(U.adam.name, bloomName), `/projects/${bloomId}?tab=chat&channel=client`, 7),
+    n(U.adam, lina, "chat", nt.chatClient(lina.name, bloomName), `/projects/${bloomId}?tab=chat&channel=client`, 7),
+    n(lina, U.adam, "approval", nt.approvalRequested(heroTask.title), `/tasks/${heroTask.id}`, 8),
+    n(lina, U.omar, "approval", nt.approvalRequested("Content: Client Review"), `/tasks/${bloomClientReview.id}`, 26),
+    n(U.sara, U.karim, "status", nt.taskStatus(U.karim.name, "Legal review of brochure copy", "waiting_client", "Verde"), `/tasks/${extra[7].id}`, 50, true),
+  ]);
+
+  /* ---------------- Team chat ---------------- */
+  const tm = (author: s.User, body: string, hoursAgo: number) => ({ orgId: org.id, authorId: author.id, body, createdAt: subHours(today, hoursAgo) });
+  await db.insert(s.teamMessages).values([
+    tm(U.sara, "Morning team 👋 Big week: Autumn Menu Launch goes live Thursday. @all please keep your tasks up to date.", 28),
+    tm(U.adam, "Bloom Café approved the hero photo. Moving the carousel to review today.", 26),
+    tm(U.maya, "Teaser story set is almost there — @Omar can you check the copy before 3pm?", 6),
+    tm(U.omar, "On it 👍", 5.5),
+    tm(U.nour, "Atlas ad sets are live. First numbers look good, I'll share a snapshot tomorrow.", 3),
   ]);
 
   /* ---------------- Activity ---------------- */

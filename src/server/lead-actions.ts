@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { leads, notifications, organizations, users } from "@/db/schema";
+import { leads, organizations } from "@/db/schema";
+import { listAdminIds, notify } from "@/lib/events";
+import { nt } from "@/lib/notify-text";
 import { requireUser } from "@/lib/auth";
 import { assertCan } from "@/lib/permissions";
 import { getLang } from "@/lib/lang";
@@ -48,21 +50,12 @@ export async function submitLead(_prev: ActionState, fd: FormData): Promise<Acti
     })
     .returning();
 
-  const admins = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.orgId, org.id), eq(users.role, "admin"), eq(users.active, true)));
-  if (admins.length) {
-    await db.insert(notifications).values(
-      admins.map((a) => ({
-        orgId: org.id,
-        userId: a.id,
-        type: "lead",
-        title: `New project request from ${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
-        link: "/leads",
-      })),
-    );
-  }
+  await notify({ id: null, orgId: org.id }, await listAdminIds(org.id), {
+    type: "lead",
+    title: nt.lead(lead.name, lead.company),
+    body: lead.message,
+    link: "/leads",
+  });
   revalidatePath("/leads");
   return { ok: true };
 }
