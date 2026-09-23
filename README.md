@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgencyOS — agency project management MVP
 
-## Getting Started
+One web app to replace the agency's Google Sheets: clients → projects → modules → tasks,
+with approvals, chat, notifications, dashboards and an activity log.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Drizzle ORM · cookie sessions (bcrypt + DB-backed session table).
+
+## Run it locally
+
+Requires Node 20+ and PostgreSQL 14+.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+docker compose up -d          # or point DATABASE_URL at any Postgres
+cp .env.example .env          # DATABASE_URL, UPLOAD_DIR
+npm run setup                 # run migrations + seed demo data
+npm run dev                   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm run db:seed` resets the database to the demo state at any time.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Demo accounts (password: `password`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role     | Email                    | What to look at                                   |
+|----------|--------------------------|---------------------------------------------------|
+| Admin    | `sara@northwind.agency`  | Agency dashboard, workload, clients, users, templates |
+| Employee | `omar@northwind.agency`  | My tasks, due/overdue, "waiting for me"            |
+| Client   | `lina@bloomcafe.com`     | Client portal, pending approval on "Hero photo selects" |
 
-## Learn More
+Other staff: `karim@` (admin), `maya@`, `yusuf@`, `nour@`, `adam@`, `leila@` (all `@northwind.agency`).
+Other clients: `daniel@atlasfitness.com`, `rana@verde-re.com`.
 
-To learn more about Next.js, take a look at the following resources:
+## How it's organized
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+  db/schema.ts          Tables. Every major entity carries org_id (multi-agency ready)
+  db/seed.ts            Realistic demo data (dates relative to today)
+  lib/permissions.ts    Role → permission policy (the single place roles are defined)
+  lib/access.ts         Row-level scoping: which projects/tasks a user may see
+  lib/auth.ts           Sessions, login, requireUser / requirePermission
+  lib/events.ts         Activity log, notifications, @mention resolution
+  lib/modules.ts        Instantiates a module template onto a project
+  lib/default-templates.ts  Content / Production / Paid Media / Account Management
+  server/queries.ts     Read-side queries (always scoped through lib/access)
+  server/*-actions.ts   Server Actions (mutations) — each checks a permission
+  app/(app)/...         Pages; app/api/files/[id] serves access-checked downloads
+  components/           UI primitives, tables, forms, chat, module card
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Key concepts
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Modules & workflows.** A module template defines workflow stages and custom fields.
+  Adding a module to a project snapshots the template and creates one task per stage.
+  Stages marked as client-approval stages become client-visible approval tasks.
+- **Approvals.** A task that requires approval enters *Awaiting approval* when moved to
+  **Waiting for Client**. The client approves (→ Completed) or requests changes with
+  feedback (→ In Progress). Both notify the team and are logged.
+- **Client visibility.** Clients only see tasks/files/comments explicitly shared with them.
+  Comments default to internal notes; staff choose "Reply visible to client".
+  Project chat has an internal *Team* channel and a *Client conversation* channel.
+- **Permissions.** UI and actions call `can(user, "tasks.assign")` etc.; resource scoping lives in
+  `lib/access.ts`. Admins see everything in their agency, employees see projects they own or
+  are members of, clients see their own company's projects only.

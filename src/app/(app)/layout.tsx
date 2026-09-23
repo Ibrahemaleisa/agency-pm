@@ -1,0 +1,29 @@
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { organizations } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
+import { navFor } from "@/lib/navigation";
+import { ROLE_LABELS } from "@/lib/constants";
+import { Sidebar } from "@/components/sidebar";
+import { unreadNotificationCount } from "@/server/queries";
+
+export default async function AppLayout({ children }: LayoutProps<"/">) {
+  const user = await requireUser();
+  const [org, unread] = await Promise.all([
+    db.query.organizations.findFirst({ where: eq(organizations.id, user.orgId) }),
+    unreadNotificationCount(user.id),
+  ]);
+  return (
+    <div className="min-h-screen">
+      <Sidebar
+        items={navFor(user)}
+        user={{ name: user.name, roleLabel: ROLE_LABELS[user.role] }}
+        orgName={org?.name ?? "Agency"}
+        initialUnread={unread}
+      />
+      <main className="min-w-0 md:pl-60">
+        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">{children}</div>
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,382 @@
+import Link from "next/link";
+import { and, asc, eq } from "drizzle-orm";
+import { formatDistanceToNow } from "date-fns";
+import { Download, Eye, EyeOff, Lock, Paperclip, Trash2 } from "lucide-react";
+import { db } from "@/db";
+import { attachments, projectModules, taskComments, users } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
+import { getAccessibleTask } from "@/lib/access";
+import { can } from "@/lib/permissions";
+import { PRIORITIES, TASK_STATUSES } from "@/lib/constants";
+import { listActivity, listInternalUsers } from "@/server/queries";
+import {
+  addComment,
+  assignTask,
+  decideApproval,
+  deleteAttachment,
+  deleteTask,
+  toggleAttachmentVisibility,
+  updateTask,
+  updateTaskStatus,
+  uploadAttachment,
+} from "@/server/task-actions";
+import { ActivityFeed } from "@/components/lists";
+import { Highlight } from "@/components/project-chat";
+import { ActionForm, AutoSubmitSelect, ConfirmSubmit, SubmitButton } from "@/components/forms";
+import {
+  ApprovalBadge,
+  Avatar,
+  Badge,
+  Card,
+  Checkbox,
+  DueDate,
+  EmptyState,
+  Field,
+  Input,
+  PageHeader,
+  Person,
+  PriorityBadge,
+  Select,
+  StatusBadge,
+  Textarea,
+  cn,
+} from "@/components/ui";
+
+export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
+  const user = await requireUser();
+  const { id } = await params;
+  const { task, project } = await getAccessibleTask(user, id);
+  const isClient = user.role === "client";
+
+  const [mod, assignee, comments, files, history, people] = await Promise.all([
+    task.moduleId ? db.query.projectModules.findFirst({ where: eq(projectModules.id, task.moduleId) }) : null,
+    task.assigneeId ? db.query.users.findFirst({ where: eq(users.id, task.assigneeId) }) : null,
+    db
+      .select({
+        id: taskComments.id,
+        body: taskComments.body,
+        internal: taskComments.internal,
+        createdAt: taskComments.createdAt,
+        authorName: users.name,
+        authorRole: users.role,
+      })
+      .from(taskComments)
+      .leftJoin(users, eq(users.id, taskComments.authorId))
+      .where(and(eq(taskComments.taskId, task.id), isClient ? eq(taskComments.internal, false) : undefined))
+      .orderBy(asc(taskComments.createdAt)),
+    db
+      .select({
+        id: attachments.id,
+        fileName: attachments.fileName,
+        size: attachments.size,
+        clientVisible: attachments.clientVisible,
+        createdAt: attachments.createdAt,
+        uploaderId: attachments.uploaderId,
+        uploaderName: users.name,
+      })
+      .from(attachments)
+      .leftJoin(users, eq(users.id, attachments.uploaderId))
+      .where(and(eq(attachments.taskId, task.id), isClient ? eq(attachments.clientVisible, true) : undefined))
+      .orderBy(asc(attachments.createdAt)),
+    listActivity(user, { taskId: task.id, limit: 50 }),
+    can(user, "tasks.assign") ? listInternalUsers(user.orgId) : Promise.resolve([]),
+  ]);
+
+  const canDecide = can(user, "approvals.decide") && task.approvalStatus === "pending";
+
+  return (
+    <>
+      <PageHeader
+        breadcrumb={[
+          { href: "/projects", label: "Projects" },
+          { href: `/projects/${project.id}`, label: project.name },
+        ]}
+        title={task.title}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            {mod && <Badge tone={mod.color}>{mod.name}</Badge>}
+            {task.stage && <span>{task.stage}</span>}
+            <StatusBadge status={task.status} />
+            <ApprovalBadge status={task.approvalStatus} />
+            {!isClient && task.clientVisible && (
+              <Badge tone="amber">
+                <Eye className="size-3" /> Client can see
+              </Badge>
+            )}
+          </span>
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          {canDecide && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+              <h2 className="text-sm font-semibold text-amber-900">Your approval is needed</h2>
+              <p className="mt-1 text-sm text-amber-800">
+                Review the deliverables below, then approve or request changes.
+              </p>
+              <ActionForm action={decideApproval} className="mt-3 space-y-2">
+                <input type="hidden" name="taskId" value={task.id} />
+                <Textarea name="feedback" rows={2} placeholder="Feedback (required when requesting changes)" className="bg-white" />
+                <div className="flex gap-2">
+                  <SubmitButton name="decision" value="approve" variant="success">
+                    Approve
+                  </SubmitButton>
+                  <SubmitButton name="decision" value="reject" variant="danger">
+                    Request changes
+                  </SubmitButton>
+                </div>
+              </ActionForm>
+            </div>
+          )}
+          {!isClient && task.requiresApproval && task.approvalStatus !== "pending" && task.status !== "completed" && (
+            <div className="rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-600">
+              This task needs client approval. Move it to <strong>Waiting for Client</strong> to send it for approval.
+            </div>
+          )}
+
+          <Card title="Description">
+            {task.description ? (
+              <p className="text-sm whitespace-pre-wrap text-zinc-700">{task.description}</p>
+            ) : (
+              <p className="text-sm text-zinc-400">No description.</p>
+            )}
+          </Card>
+
+          <Card
+            title={
+              <span className="flex items-center gap-1.5">
+                <Paperclip className="size-4" /> {isClient ? "Deliverables" : "Files"}
+              </span>
+            }
+            padded={false}
+          >
+            {files.length === 0 ? (
+              <EmptyState>No files yet.</EmptyState>
+            ) : (
+              <ul className="divide-y divide-zinc-100">
+                {files.map((f) => (
+                  <li key={f.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <a href={`/api/files/${f.id}`} className="block truncate text-sm font-medium hover:text-indigo-600">
+                        {f.fileName}
+                      </a>
+                      <div className="text-xs text-zinc-400">
+                        {formatBytes(f.size)} · {f.uploaderName} · {formatDistanceToNow(f.createdAt, { addSuffix: true })}
+                      </div>
+                    </div>
+                    {!isClient && (f.clientVisible ? <Badge tone="amber">Shared with client</Badge> : <Badge>Internal</Badge>)}
+                    <a href={`/api/files/${f.id}`} className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title="Download">
+                      <Download className="size-4" />
+                    </a>
+                    {can(user, "tasks.setClientVisibility") && (
+                      <form action={toggleAttachmentVisibility}>
+                        <input type="hidden" name="attachmentId" value={f.id} />
+                        <button className="rounded p-1 text-zinc-500 hover:bg-zinc-100" title={f.clientVisible ? "Hide from client" : "Share with client"}>
+                          {f.clientVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </form>
+                    )}
+                    {(f.uploaderId === user.id || user.role === "admin") && (
+                      <form action={deleteAttachment}>
+                        <input type="hidden" name="attachmentId" value={f.id} />
+                        <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Delete">
+                          <Trash2 className="size-4" />
+                        </button>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {can(user, "files.upload") && (
+              <ActionForm action={uploadAttachment} resetOnSuccess className="flex flex-wrap items-center gap-3 border-t border-zinc-100 px-4 py-3">
+                <input type="hidden" name="taskId" value={task.id} />
+                <input
+                  type="file"
+                  name="file"
+                  required
+                  className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-zinc-200"
+                />
+                {can(user, "tasks.setClientVisibility") && <Checkbox name="clientVisible" label="Share with client" />}
+                <SubmitButton size="sm" variant="secondary" pendingText="Uploading…">
+                  Upload
+                </SubmitButton>
+              </ActionForm>
+            )}
+          </Card>
+
+          <Card title={`Comments (${comments.length})`} padded={false}>
+            {comments.length === 0 ? (
+              <EmptyState>No comments yet.</EmptyState>
+            ) : (
+              <ul className="divide-y divide-zinc-100">
+                {comments.map((c) => (
+                  <li key={c.id} className={cn("flex gap-3 px-4 py-3", c.internal && "bg-amber-50/40")}>
+                    <Avatar name={c.authorName} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-sm font-medium">{c.authorName ?? "Deleted user"}</span>
+                        {c.authorRole === "client" && <Badge tone="amber">Client</Badge>}
+                        {!isClient &&
+                          (c.internal ? (
+                            <span className="flex items-center gap-1 text-xs text-zinc-500">
+                              <Lock className="size-3" /> Internal
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-amber-700">
+                              <Eye className="size-3" /> Client-visible
+                            </span>
+                          ))}
+                        <span className="text-xs text-zinc-400">{formatDistanceToNow(c.createdAt, { addSuffix: true })}</span>
+                      </div>
+                      <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-700">
+                        <Highlight text={c.body} />
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ActionForm action={addComment} resetOnSuccess className="space-y-2 border-t border-zinc-100 p-4">
+              <input type="hidden" name="taskId" value={task.id} />
+              <Textarea name="body" rows={3} required placeholder="Write a comment… use @name to mention someone" />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {!isClient ? (
+                  task.clientVisible ? (
+                    <Select
+                      name="visibility"
+                      defaultValue="internal"
+                      className="w-auto"
+                      options={[
+                        { value: "internal", label: "🔒 Internal note (team only)" },
+                        { value: "client", label: "👁 Reply visible to client" },
+                      ]}
+                    />
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-zinc-500">
+                      <Lock className="size-3" /> Internal — this task isn&apos;t shared with the client
+                    </span>
+                  )
+                ) : (
+                  <span />
+                )}
+                <SubmitButton size="sm">Comment</SubmitButton>
+              </div>
+            </ActionForm>
+          </Card>
+
+          <Card title="History" padded={false}>
+            <ActivityFeed items={history} showProject={false} empty="No history." />
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="min-w-0 space-y-6">
+          <Card>
+            <dl className="space-y-4 text-sm">
+              <SideField label="Status">
+                {can(user, "tasks.updateStatus") ? (
+                  <form action={updateTaskStatus}>
+                    <input type="hidden" name="taskId" value={task.id} />
+                    <AutoSubmitSelect name="status" defaultValue={task.status} options={TASK_STATUSES} />
+                  </form>
+                ) : (
+                  <StatusBadge status={task.status} />
+                )}
+              </SideField>
+              <SideField label="Assignee">
+                {can(user, "tasks.assign") ? (
+                  <form action={assignTask}>
+                    <input type="hidden" name="taskId" value={task.id} />
+                    <AutoSubmitSelect
+                      name="assigneeId"
+                      defaultValue={task.assigneeId ?? ""}
+                      options={[{ value: "", label: "Unassigned" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
+                    />
+                  </form>
+                ) : (
+                  <Person name={assignee?.name} />
+                )}
+              </SideField>
+              <SideField label="Priority">
+                <PriorityBadge priority={task.priority} />
+              </SideField>
+              <SideField label="Due date">
+                <DueDate date={task.dueDate} status={task.status} />
+              </SideField>
+              <SideField label="Project">
+                <Link href={`/projects/${project.id}`} className="text-indigo-600 hover:underline">
+                  {project.name}
+                </Link>
+              </SideField>
+            </dl>
+          </Card>
+
+          {can(user, "tasks.edit") && (
+            <Card title="Edit task">
+              <ActionForm action={updateTask} className="space-y-3" successMessage="Task updated.">
+                <input type="hidden" name="taskId" value={task.id} />
+                <Field label="Title">
+                  <Input name="title" defaultValue={task.title} required />
+                </Field>
+                <Field label="Description">
+                  <Textarea name="description" rows={4} defaultValue={task.description ?? ""} />
+                </Field>
+                {mod && (
+                  <Field label={`${mod.name} stage`}>
+                    <Select
+                      name="stage"
+                      defaultValue={task.stage ?? ""}
+                      placeholder="—"
+                      options={mod.stages.map((s) => ({ value: s.name, label: s.name }))}
+                    />
+                  </Field>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Priority">
+                    <Select name="priority" defaultValue={task.priority} options={PRIORITIES} />
+                  </Field>
+                  <Field label="Due date">
+                    <Input type="date" name="dueDate" defaultValue={task.dueDate ?? ""} />
+                  </Field>
+                </div>
+                {can(user, "tasks.setClientVisibility") && (
+                  <div className="space-y-2">
+                    <Checkbox name="clientVisible" defaultChecked={task.clientVisible} label="Visible to client" />
+                    <Checkbox name="requiresApproval" defaultChecked={task.requiresApproval} label="Requires client approval" />
+                  </div>
+                )}
+                <div className="flex justify-end">
+                  <SubmitButton size="sm">Save</SubmitButton>
+                </div>
+              </ActionForm>
+            </Card>
+          )}
+
+          {can(user, "tasks.delete") && (
+            <form action={deleteTask} className="text-right">
+              <input type="hidden" name="taskId" value={task.id} />
+              <ConfirmSubmit message="Delete this task permanently?">Delete task</ConfirmSubmit>
+            </form>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SideField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="mb-1 text-xs font-medium text-zinc-500">{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+function formatBytes(n: number) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
