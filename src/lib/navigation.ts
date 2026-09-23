@@ -5,7 +5,7 @@ import type { Role } from "@/db/schema";
 
 type Entry = Omit<NavItem, "label" | "section"> & {
   key: keyof AppDict["nav"];
-  section?: "sectionAgency" | "sectionSettings";
+  section?: "sectionAgency" | "sectionSettings" | "sectionHelp";
   permission?: Permission;
 };
 
@@ -22,6 +22,7 @@ const NAV: Entry[] = [
   { href: "/activity", key: "activity", icon: "activity", permission: "activity.viewAll", section: "sectionAgency" },
   { href: "/team", key: "team", icon: "team", permission: "users.manage", section: "sectionSettings" },
   { href: "/templates", key: "templates", icon: "templates", permission: "templates.manage", section: "sectionSettings" },
+  { href: "/guide", key: "guide", icon: "guide", section: "sectionHelp" },
 ];
 
 export function navFor(user: { role: Role }, t: AppDict): NavItem[] {

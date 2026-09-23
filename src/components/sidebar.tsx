@@ -7,6 +7,7 @@ import {
   Activity,
   BadgeCheck,
   Bell,
+  BookOpen,
   Building2,
   CheckSquare,
   FolderKanban,
@@ -39,6 +40,7 @@ const ICONS = {
   templates: LayoutTemplate,
   leads: Sparkles,
   teamChat: MessagesSquare,
+  guide: BookOpen,
 };
 
 export type NavItem = {

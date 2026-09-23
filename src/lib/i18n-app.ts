@@ -16,6 +16,7 @@ const en = {
     templates: "Module Templates",
     sectionAgency: "Agency",
     sectionSettings: "Settings",
+    sectionHelp: "Help",
     more: "More",
     signOut: "Sign out",
     workspace: "Workspace",
@@ -23,6 +24,7 @@ const en = {
     viewSite: "View website",
     teamChat: "Team chat",
     search: "Search",
+    guide: "Guide",
   },
   roles: { admin: "Admin / Manager", employee: "Employee", client: "Client" },
   taskStatus: {
@@ -418,6 +420,11 @@ const en = {
     everyone: "Everyone",
     unassigned: "Unassigned",
   },
+  guide: {
+    title: "Guide",
+    subtitle: "What the workspace can do, and how to use it step by step.",
+    contents: "Contents",
+  },
   actions: {
     titleRequired: "Title is required.",
     invalidModule: "Invalid module.",
@@ -465,6 +472,7 @@ const ar: AppDict = {
     templates: "قوالب الوحدات",
     sectionAgency: "الوكالة",
     sectionSettings: "الإعدادات",
+    sectionHelp: "المساعدة",
     more: "المزيد",
     signOut: "تسجيل الخروج",
     workspace: "مساحة العمل",
@@ -472,6 +480,7 @@ const ar: AppDict = {
     viewSite: "عرض الموقع",
     teamChat: "الشات العام",
     search: "بحث",
+    guide: "دليل الاستخدام",
   },
   roles: { admin: "مدير", employee: "موظف", client: "عميل" },
   taskStatus: {
@@ -865,6 +874,11 @@ const ar: AppDict = {
     assignee: "المكلّف",
     everyone: "الجميع",
     unassigned: "غير مسندة",
+  },
+  guide: {
+    title: "دليل الاستخدام",
+    subtitle: "ما تقدمه مساحة العمل، وكيف تستخدمها خطوة بخطوة.",
+    contents: "المحتويات",
   },
   actions: {
     titleRequired: "العنوان مطلوب.",
