@@ -4,9 +4,11 @@ import { AtSign, BadgeCheck, Bell, FolderKanban, Mail, MailX, MessageSquare, Mes
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
-import { markAllNotificationsRead, markNotificationRead, setEmailNotifications } from "@/server/admin-actions";
+import { markAllNotificationsRead, markNotificationRead, sendTestEmail, setEmailNotifications } from "@/server/admin-actions";
+import { ActionForm, SubmitButton } from "@/components/forms";
+import { can } from "@/lib/permissions";
 import { emailEnabled } from "@/lib/email";
-import { Button, Card, EmptyState, PageHeader, cn } from "@/components/ui";
+import { Button, Card, EmptyState, Input, PageHeader, cn } from "@/components/ui";
 import { getT } from "@/lib/lang";
 
 export async function generateMetadata() {
@@ -66,6 +68,16 @@ export default async function NotificationsPage() {
           <p className="w-full text-xs text-amber-700">{t.bell.emailNotConfigured}</p>
         )}
       </div>
+      {can(user, "users.manage") && emailEnabled() && (
+        <div className="mb-4 rounded-xl border border-zinc-200/80 bg-white px-4 py-3">
+          <div className="text-sm font-medium">{t.bell.testTitle}</div>
+          <p className="text-xs text-zinc-500">{t.bell.testHint}</p>
+          <ActionForm action={sendTestEmail} successMessage={t.bell.testSent} className="mt-2 flex flex-wrap items-center gap-2">
+            <Input name="to" type="email" required dir="ltr" placeholder="name@example.com" className="w-auto min-w-0 flex-1 sm:max-w-xs" />
+            <SubmitButton size="sm" variant="secondary">{t.bell.testSend}</SubmitButton>
+          </ActionForm>
+        </div>
+      )}
       <Card padded={false}>
         {items.length === 0 ? (
           <EmptyState>{t.notifications.empty}</EmptyState>

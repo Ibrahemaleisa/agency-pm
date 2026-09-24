@@ -22,6 +22,7 @@ import { logActivity } from "@/lib/events";
 import { bool, str, type ActionState } from "@/lib/action-state";
 import { TONES } from "@/lib/constants";
 import { getT } from "@/lib/lang";
+import { emailEnabled, notificationEmail, sendEmail } from "@/lib/email";
 
 const msg = async () => (await getT()).t.actions;
 
@@ -273,4 +274,24 @@ export async function setEmailNotifications(fd: FormData) {
     .set({ emailNotifications: str(fd, "on") === "1" })
     .where(eq(users.id, user.id));
   refresh();
+}
+
+/** Admin tool: send a sample notification email to check the mail settings. */
+export async function sendTestEmail(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  assertCan(user, "users.manage");
+  const { t, lang } = await getT();
+  const to = str(fd, "to")?.toLowerCase() ?? "";
+  if (!isEmail(to)) return { error: t.actions.invalidEmail };
+  if (!emailEnabled()) return { error: t.bell.emailNotConfigured };
+  try {
+    await sendEmail({
+      to,
+      ...notificationEmail({ lang, title: t.bell.testSubject, body: t.bell.testBody, link: "/notifications" }),
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error("[test email failed]", err);
+    return { error: `${t.bell.testFailed} ${err instanceof Error ? err.message.slice(0, 200) : ""}` };
+  }
 }
