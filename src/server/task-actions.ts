@@ -265,6 +265,56 @@ export async function updateTaskStatus(fd: FormData) {
   refresh();
 }
 
+/** One click: share the task with the client and ask them to approve it. */
+export async function requestClientApproval(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  assertCan(user, "tasks.setClientVisibility");
+  const { task, project } = await getAccessibleTask(user, str(fd, "taskId") ?? "");
+  if (task.approvalStatus === "pending") return { error: (await msg()).alreadyPending };
+  const note = str(fd, "note");
+
+  await db
+    .update(tasks)
+    .set({
+      requiresApproval: true,
+      clientVisible: true,
+      status: "waiting_client",
+      approvalStatus: "pending",
+      completedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, task.id));
+  if (note) {
+    await db.insert(taskComments).values({ orgId: user.orgId, taskId: task.id, authorId: user.id, body: note, internal: false });
+  }
+  await logActivity(user, {
+    action: "approval.requested",
+    summary: `requested client approval on "${task.title}"`,
+    projectId: task.projectId,
+    taskId: task.id,
+    clientVisible: true,
+  });
+
+  const [{ clients }, admins, staff] = await Promise.all([
+    getProjectAudience(project.id),
+    listAdminIds(user.orgId),
+    getProjectStaffIds(project.id),
+  ]);
+  await notify(user, clients.map((c) => c.id), {
+    type: "approval",
+    title: nt.approvalRequested(task.title),
+    body: note,
+    link: taskLink(task.id),
+  });
+  await notify(user, [task.assigneeId, task.createdById, ...admins, ...staff], {
+    type: "status",
+    title: nt.taskStatus(user.name, task.title, "waiting_client", project.name),
+    link: taskLink(task.id),
+  });
+  refresh();
+  return { ok: true };
+}
+
 export async function decideApproval(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireUser();
   assertCan(user, "approvals.decide");

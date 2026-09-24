@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronDown, Download, Eye, EyeOff, ImageIcon, Lock, Paperclip, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Download, Eye, EyeOff, Hourglass, ImageIcon, Lock, Paperclip, Pencil, Send, Trash2 } from "lucide-react";
 import { db } from "@/db";
 import { attachments, projectModules, taskComments, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
@@ -16,6 +16,7 @@ import {
   decideApproval,
   deleteAttachment,
   deleteTask,
+  requestClientApproval,
   toggleAttachmentVisibility,
   updateTask,
   updateTaskStatus,
@@ -83,6 +84,14 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     listActivity(user, { taskId: task.id, limit: 50 }),
     can(user, "tasks.assign") ? listInternalUsers(user.orgId) : Promise.resolve([]),
   ]);
+  const clientUsers = isClient
+    ? 1
+    : (
+        await db
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.clientId, project.clientId), eq(users.role, "client"), eq(users.active, true)))
+      ).length;
 
   const canDecide = can(user, "approvals.decide") && task.approvalStatus === "pending";
   const images = files.filter((f) => isImageType(f.mimeType));
@@ -154,11 +163,36 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
               </ActionForm>
             </div>
           )}
-          {!isClient && task.requiresApproval && task.approvalStatus !== "pending" && task.status !== "completed" && (
-            <div className="rounded-xl border border-zinc-200/80 bg-white p-3 text-sm text-zinc-600">
-              {k.needsApprovalHint} <strong>{tr.taskStatus.waiting_client}</strong> {k.needsApprovalHint2}
+          {!isClient && can(user, "tasks.setClientVisibility") && (task.approvalStatus === "pending" ? (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <Hourglass className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div className="text-sm">
+                <div className="font-semibold text-amber-900">{k.approvalPendingTitle}</div>
+                <p className="mt-0.5 text-amber-800">{k.approvalPendingHint}</p>
+                {clientUsers === 0 && <NoClientUsers k={k} isAdmin={user.role === "admin"} />}
+              </div>
             </div>
-          )}
+          ) : task.status !== "completed" && (
+            <div className="rounded-xl border border-zinc-200/80 bg-white p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)] md:p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Send className="size-4 text-zinc-500 rtl:-scale-x-100" /> {k.approvalBoxTitle}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                {task.approvalStatus === "rejected" ? k.approvalRejectedHint : k.approvalBoxHint}
+              </p>
+              {clientUsers === 0 && <NoClientUsers k={k} isAdmin={user.role === "admin"} />}
+              <ActionForm action={requestClientApproval} resetOnSuccess successMessage={k.approvalSent} className="mt-3 space-y-2">
+                <input type="hidden" name="taskId" value={task.id} />
+                <Textarea name="note" rows={2} placeholder={k.approvalNotePlaceholder} />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-zinc-400">{docs.length + images.length > 0 ? k.shareFilesHint : ""}</span>
+                  <SubmitButton size="sm" data-testid="request-approval">
+                    {task.approvalStatus === "rejected" ? k.requestAgain : k.requestApproval}
+                  </SubmitButton>
+                </div>
+              </ActionForm>
+            </div>
+          ))}
 
           <Card title={k.description}>
             {task.description ? (
@@ -426,4 +460,17 @@ function formatBytes(n: number) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function NoClientUsers({ k, isAdmin }: { k: { noClientUsers: string; addClientUser: string }; isAdmin: boolean }) {
+  return (
+    <p className="mt-2 text-xs font-medium text-red-600">
+      {k.noClientUsers}{" "}
+      {isAdmin && (
+        <Link href="/team" className="underline">
+          {k.addClientUser}
+        </Link>
+      )}
+    </p>
+  );
 }
